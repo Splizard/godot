@@ -4090,6 +4090,7 @@ void EditorInspector::_notification(int p_what) {
 			changing++;
 
 			if (update_tree_pending) {
+				uint64_t start = OS::get_singleton()->get_ticks_usec();
 				// if the new property list is the same as the old one, we don't need
 				// to re-create everything.
 				bool same_property_list = true;
@@ -4118,7 +4119,7 @@ void EditorInspector::_notification(int p_what) {
 				}
 				update_tree_pending = false;
 				pending.clear();
-
+				print_line((OS::get_singleton()->get_ticks_usec()-start));
 			} else {
 				while (pending.size()) {
 					StringName prop = *pending.begin();
