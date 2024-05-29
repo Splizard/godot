@@ -4087,9 +4087,11 @@ void EditorInspector::_notification(int p_what) {
 			changing++;
 
 			if (update_tree_pending) {
+				uint64_t start = OS::get_singleton()->get_ticks_usec();
 				update_tree();
 				update_tree_pending = false;
 				pending.clear();
+				print_line((OS::get_singleton()->get_ticks_usec()-start));
 
 			} else {
 				while (pending.size()) {
