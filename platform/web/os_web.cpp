@@ -35,9 +35,11 @@
 #include "godot_js.h"
 #include "ip_web.h"
 #include "net_socket_web.h"
+#include "gdextension_library_loader_web.h"
 
 #include "core/config/project_settings.h"
 #include "core/debugger/engine_debugger.h"
+#include "core/extension/gdextension_manager.h"
 #include "drivers/unix/dir_access_unix.h"
 #include "drivers/unix/file_access_unix.h"
 #include "main/main.h"
@@ -46,6 +48,7 @@
 
 #include <dlfcn.h>
 #include <emscripten.h>
+#include <emscripten/bind.h>
 #include <stdlib.h>
 
 void OS_Web::alert(const String &p_alert, const String &p_title) {
@@ -260,6 +263,20 @@ Error OS_Web::open_dynamic_library(const String &p_path, void *&p_library_handle
 
 	return OK;
 }
+
+void OS_Web::load_platform_gdextensions() const {
+	emscripten::val preloaded = emscripten::val::global("GDExtension");
+	emscripten::val keys = emscripten::val::global("Object").call<emscripten::val>("keys", preloaded);
+	for (unsigned int i = 0; i < keys["length"].as<unsigned int>(); ++i) {
+        emscripten::val key = keys[i];
+        emscripten::val value = preloaded[key];
+
+		Ref<GDExtensionJavascriptLoader> loader;
+		loader.instantiate();
+		GDExtensionManager::get_singleton()->load_extension_with_loader(String(key.as<std::string>().c_str()), loader);
+	}
+}
+
 
 OS_Web *OS_Web::get_singleton() {
 	return static_cast<OS_Web *>(OS::get_singleton());
