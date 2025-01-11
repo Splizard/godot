@@ -70,8 +70,8 @@ void js_print_script_error(std::string arg0, std::string arg1, std::string arg2,
 void js_print_script_error_with_message(std::string arg0, std::string arg1, std::string arg2, std::string arg3, int32_t arg4, uint8_t arg5) {
 	gdextension_print_script_error_with_message(arg0.c_str(), arg1.c_str(), arg2.c_str(), arg3.c_str(), arg4, arg5);
 }
-uint64_t js_get_native_struct_size(uint32_t arg0) {
-	return (uint64_t)(gdextension_get_native_struct_size((GDExtensionConstStringNamePtr)arg0));
+uint32_t js_get_native_struct_size(uint32_t arg0) {
+	return (uint32_t)(gdextension_get_native_struct_size((GDExtensionConstStringNamePtr)&arg0));
 }
 void js_variant_new_copy(uint32_t arg1_0, uint32_t arg1_1, uint32_t arg1_2, uint32_t arg1_3, uint32_t arg1_4, uint32_t arg1_5) {
 	void *arg0 = &result_buffer[0][0][0];
@@ -658,7 +658,7 @@ void js_callable_call(void *callable_userdata, const GDExtensionConstVariantPtr 
 			result_buffer[0][i][j] = v[j];
 		}
 	}
-	r_error->error = (GDExtensionCallErrorType)userdata->value.call<int>("call", p_argument_count);
+	r_error->error = (GDExtensionCallErrorType)((userdata->value).call<int>("call_func", (uint32_t)p_argument_count));
 	uint32_t *v = (uint32_t*)r_return;
 	for (int i = 0; i < 6; i++) {
 		v[i] = params_buffer[0][0][i];
@@ -688,12 +688,14 @@ uint32_t js_classdb_get_class_tag(uint32_t name) {
 }
 
 GDExtensionBool extension_class3_set_func(GDExtensionClassInstancePtr p_instance, GDExtensionConstStringNamePtr p_name, GDExtensionConstVariantPtr p_value) {
+	return false;
 	val info = ((JavascriptUserData*)p_instance)->value;
 	uint32_t *n = (uint32_t*)p_name;
 	uint32_t *v = (uint32_t*)p_value;
 	return (GDExtensionBool)info.call<bool>("set", (uint32_t)p_instance, n[0], v[0], v[1], v[2], v[3], v[4], v[5]);
 }
 GDExtensionBool extension_class3_get_func(GDExtensionClassInstancePtr p_instance, GDExtensionConstStringNamePtr p_name, GDExtensionVariantPtr r_ret) {
+	return false;
 	val info = ((JavascriptUserData*)p_instance)->value;
 	uint32_t *n = (uint32_t*)p_name;
 	bool valid = info.call<bool>("get", (uint32_t)p_instance, n[0]);
@@ -704,6 +706,7 @@ GDExtensionBool extension_class3_get_func(GDExtensionClassInstancePtr p_instance
 	return valid;
 }
 uint64_t extension_class3_get_rid_func(GDExtensionClassInstancePtr p_instance) {
+	return 0;
 	val info = ((JavascriptUserData*)p_instance)->value;
 	double rid = info.call<double>("get_rid", (uint32_t)p_instance);
 	return *(uint64_t *)&rid;
@@ -756,28 +759,32 @@ void js_classdb_register_extension_class3(uint32_t token, uint32_t class_name, u
 	if (info.hasOwnProperty("is_abstract")) creation_info.is_abstract = (GDExtensionBool)info["is_abstract"].as<bool>();
 	if (info.hasOwnProperty("is_exposed")) creation_info.is_exposed = (GDExtensionBool)info["is_exposed"].as<bool>();
 	if (info.hasOwnProperty("is_runtime")) creation_info.is_runtime = (GDExtensionBool)info["is_runtime"].as<bool>();
-	if (info.hasOwnProperty("set_func")) creation_info.set_func = extension_class3_set_func;
-	if (info.hasOwnProperty("get_func")) creation_info.get_func = extension_class3_get_func;
-	if (info.hasOwnProperty("get_property_list_func")) creation_info.get_property_list_func = extension_class3_get_property_list_func;
-	if (info.hasOwnProperty("free_property_list_func")) creation_info.free_property_list_func = extension_class3_free_property_list_func;
-	if (info.hasOwnProperty("property_can_revert_func")) creation_info.property_can_revert_func = extension_class3_property_can_revert_func;
-	if (info.hasOwnProperty("property_get_revert_func")) creation_info.property_get_revert_func = extension_class3_property_get_revert_func;
-	if (info.hasOwnProperty("validate_property_func")) creation_info.validate_property_func = extension_class3_validate_property_func;
-	if (info.hasOwnProperty("notification_func")) creation_info.notification_func = extension_class3_notification_func;
-	if (info.hasOwnProperty("to_string_func")) creation_info.to_string_func = extension_class3_to_string_func;
-	if (info.hasOwnProperty("reference_func")) creation_info.reference_func = extension_class3_reference_func;
-	if (info.hasOwnProperty("unreference_func")) creation_info.unreference_func = extension_class3_unreference_func;
+	creation_info.set_func = extension_class3_set_func;
+	creation_info.get_func = extension_class3_get_func;
+	creation_info.get_property_list_func = extension_class3_get_property_list_func;
+	creation_info.free_property_list_func = extension_class3_free_property_list_func;
+	creation_info.property_can_revert_func = extension_class3_property_can_revert_func;
+	creation_info.property_get_revert_func = extension_class3_property_get_revert_func;
+	creation_info.validate_property_func = extension_class3_validate_property_func;
+	creation_info.notification_func = extension_class3_notification_func;
+	creation_info.to_string_func = extension_class3_to_string_func;
+	creation_info.reference_func = extension_class3_reference_func;
+	creation_info.unreference_func = extension_class3_unreference_func;
 	if (info.hasOwnProperty("create_instance_func")) creation_info.create_instance_func = extension_class3_create_instance_func;
-	if (info.hasOwnProperty("free_instance_func")) creation_info.free_instance_func = extension_class3_free_instance_func;
-	if (info.hasOwnProperty("recreate_instance_func")) creation_info.recreate_instance_func = extension_class3_recreate_instance_func;
-	if (info.hasOwnProperty("get_virtual_func")) creation_info.get_virtual_func = extension_class3_get_virtual_func;
+	creation_info.free_instance_func = extension_class3_free_instance_func;
 	if (info.hasOwnProperty("get_virtual_call_data_func")) creation_info.get_virtual_call_data_func = extension_class3_get_virtual_call_data_func;
 	if (info.hasOwnProperty("call_virtual_with_data_func")) creation_info.call_virtual_with_data_func = extension_class3_call_virtual_with_data_func;
-	if (info.hasOwnProperty("get_rid_func")) creation_info.get_rid_func = extension_class3_get_rid_func;
+	creation_info.get_rid_func = extension_class3_get_rid_func;
 	creation_info.class_userdata = new JavascriptUserData{info};
 	GDExtension::_register_extension_class3(
-		(GDExtensionClassLibraryPtr)token, (GDExtensionConstStringNamePtr)class_name,
-		(GDExtensionConstStringNamePtr)base_class_name, &creation_info);
+		(GDExtensionClassLibraryPtr)token, (GDExtensionConstStringNamePtr)&class_name,
+		(GDExtensionConstStringNamePtr)&base_class_name, &creation_info);
+}
+
+uint32_t get_library_path(uint32_t token) {
+	uint32_t path;
+	GDExtension::_get_library_path((GDExtensionClassLibraryPtr)token, &path);
+	return path;
 }
 
 EMSCRIPTEN_BINDINGS(my_module) {
@@ -908,4 +915,6 @@ EMSCRIPTEN_BINDINGS(my_module) {
 	function("gdextension_callable_custom_create2", &js_callable_custom_create2);
 	function("gdextension_classdb_get_class_tag", &js_classdb_get_class_tag);
 	function("gdextension_classdb_get_method_bind", &js_classdb_get_method_bind);
+	function("gdextension_classdb_register_extension_class3", &js_classdb_register_extension_class3);
+	function("gdextension_get_library_path", &get_library_path);
 }
