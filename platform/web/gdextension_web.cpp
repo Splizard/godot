@@ -22,7 +22,10 @@ struct JavascriptUserData {
 };
 
 uint32_t js_read_result_buffer(uint32_t buffer, uint32_t index, uint32_t word) { return result_buffer[buffer][index][word]; }
-void js_write_params_buffer(uint32_t buffer, uint32_t index,
+void js_write_params_buffer(uint32_t buffer, uint32_t index, uint32_t word, uint32_t v1) {
+	params_buffer[buffer][index][word] = v1;
+}
+void js_write_params_buffer16(uint32_t buffer, uint32_t index,
 	uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6, uint32_t v7, uint32_t v8,
 	uint32_t v9, uint32_t v10, uint32_t v11, uint32_t v12, uint32_t v13, uint32_t v14, uint32_t v15, uint32_t v16
 ) {
@@ -312,8 +315,10 @@ uint32_t js_variant_get_ptr_builtin_method(uint32_t p_type, uint32_t p_method, i
 	return (uint32_t)gdextension_variant_get_ptr_builtin_method((GDExtensionVariantType)p_type, (GDExtensionStringNamePtr)&p_method, hash);
 }
 void js_call_variant_get_ptr_builtin_method(uint32_t fn, int argc) {
-	((GDExtensionPtrBuiltInMethod)fn)(&params_buffer[0][0][0], (const GDExtensionConstTypePtr *
-	)&params_buffer[1][0][0], &result_buffer[0][0][0], argc);
+	((GDExtensionPtrBuiltInMethod)fn)(&params_buffer[1][0][0],
+		(const GDExtensionConstTypePtr *)&params_points, &result_buffer[0][0][0], argc);
+	result_buffer[1][0][0] = params_buffer[1][0][0]; // packed arrays are mutable.
+	result_buffer[1][0][1] = params_buffer[1][0][1];
 }
 uint32_t js_variant_get_ptr_constructor(uint32_t p_type, int32_t p_constructor) {
 	return (uint32_t)gdextension_variant_get_ptr_constructor((GDExtensionVariantType)p_type, p_constructor);
@@ -391,7 +396,7 @@ uint32_t js_string_new(std::string contents) {
 std::string js_string_get(uint32_t s, uint32_t length) {
 	std::string result;
 	result.resize(length);
-	gdextension_string_to_latin1_chars(&s, &result[0], length);
+	gdextension_string_to_latin1_chars(&s, result.data(), length);
 	return result;
 }
 uint32_t js_string_name_new(std::string contents) {
@@ -399,97 +404,139 @@ uint32_t js_string_name_new(std::string contents) {
 	gdextension_string_name_new_with_latin1_chars(&result, contents.c_str(), false);
 	return result;
 }
-uint8_t js_packed_byte_array_operator_index(uint32_t a1, uint32_t a2, int64_t p_index) {
+void js_packed_byte_array_operator_index(uint32_t a1, uint32_t a2, int64_t p_index) {
 	uint32_t a[2] = {a1, a2};
-	return *gdextension_packed_byte_array_operator_index(&a, p_index);
+	uint8_t *out = (uint8_t *)&result_buffer[0][0][0];
+	*out = *gdextension_packed_byte_array_operator_index(&a, p_index);
 }
-float js_packed_float32_array_operator_index(uint32_t a1, uint32_t a2, int64_t p_index) {
+void js_packed_float32_array_operator_index(uint32_t a1, uint32_t a2, int64_t p_index) {
 	uint32_t a[2] = {a1, a2};
-	return *gdextension_packed_float32_array_operator_index(&a, p_index);
+	float *out = (float*)&result_buffer[0][0][0];
+	*out = *gdextension_packed_float32_array_operator_index(&a, p_index);
 }
-double js_packed_float64_array_operator_index(uint32_t a1, uint32_t a2, int64_t p_index) {
+void js_packed_float64_array_operator_index(uint32_t a1, uint32_t a2, int64_t p_index) {
 	uint32_t a[2] = {a1, a2};
-	return *gdextension_packed_float64_array_operator_index(&a, p_index);
+	double *out = (double*)&result_buffer[0][0][0];
+	*out = *gdextension_packed_float64_array_operator_index(&a, p_index);
 }
-int32_t js_packed_int32_array_operator_index(uint32_t a1, uint32_t a2, int64_t p_index) {
+void js_packed_int32_array_operator_index(uint32_t a1, uint32_t a2, int64_t p_index) {
 	uint32_t a[2] = {a1, a2};
-	return *gdextension_packed_int32_array_operator_index(&a, p_index);
+	int32_t *out = (int32_t*)&result_buffer[0][0][0];
+	*out = *gdextension_packed_int32_array_operator_index(&a, p_index);
 }
-int64_t js_packed_int64_array_operator_index(uint32_t a1, uint32_t a2, int64_t p_index) {
+void js_packed_int64_array_operator_index(uint32_t a1, uint32_t a2, int64_t p_index) {
 	uint32_t a[2] = {a1, a2};
-	return *gdextension_packed_int64_array_operator_index(&a, p_index);
+	int64_t *out = (int64_t*)&result_buffer[0][0][0];
+	*out = *gdextension_packed_int64_array_operator_index(&a, p_index);
 }
-uint32_t js_packed_string_array_operator_index(uint32_t a1, uint32_t a2, int64_t p_index) {
+void js_packed_string_array_operator_index(uint32_t a1, uint32_t a2, int64_t p_index) {
 	uint32_t a[2] = {a1, a2};
-	return *(uint32_t*)gdextension_packed_string_array_operator_index(&a, p_index);
+	uint32_t *out = (uint32_t*)&result_buffer[0][0][0];
+	*out = *(uint32_t *)(GDExtensionStringPtr)gdextension_packed_string_array_operator_index(&a, p_index);
 }
-uint32_t js_packed_vector2_array_operator_index(uint32_t a1, uint32_t a2, int64_t p_index) {
+void js_packed_vector2_array_operator_index(uint32_t a1, uint32_t a2, int64_t p_index) {
 	uint32_t a[2] = {a1, a2};
-	return (uintptr_t)gdextension_packed_vector2_array_operator_index(&a, p_index);
+	float *out = (float*)&result_buffer[0][0][0];
+	float *vec = (float*)gdextension_packed_vector2_array_operator_index(&a, p_index);
+	out[0] = vec[0];
+	out[1] = vec[1];
 }
-uint32_t js_packed_vector3_array_operator_index(uint32_t a1, uint32_t a2, int64_t p_index) {
+void js_packed_vector3_array_operator_index(uint32_t a1, uint32_t a2, int64_t p_index) {
 	uint32_t a[2] = {a1, a2};
-	return (uintptr_t)gdextension_packed_vector3_array_operator_index(&a, p_index);
+	float *out = (float*)&result_buffer[0][0][0];
+	float *vec = (float*)gdextension_packed_vector3_array_operator_index(&a, p_index);
+	out[0] = vec[0];
+	out[1] = vec[1];
+	out[2] = vec[2];
 }
-uint32_t js_packed_vector4_array_operator_index(uint32_t a1, uint32_t a2, int64_t p_index) {
+void js_packed_vector4_array_operator_index(uint32_t a1, uint32_t a2, int64_t p_index) {
 	uint32_t a[2] = {a1, a2};
-	return (uintptr_t)gdextension_packed_vector4_array_operator_index(&a, p_index);
+	float *out = (float*)&result_buffer[0][0][0];
+	float *vec = (float*)gdextension_packed_vector4_array_operator_index(&a, p_index);
+	out[0] = vec[0];
+	out[1] = vec[1];
+	out[2] = vec[2];
+	out[3] = vec[3];
 }
-uint32_t js_packed_color_array_operator_index(uint32_t a1, uint32_t a2, int64_t p_index) {
+void js_packed_color_array_operator_index(uint32_t a1, uint32_t a2, int64_t p_index) {
 	uint32_t a[2] = {a1, a2};
-	return (uintptr_t)gdextension_packed_color_array_operator_index(&a, p_index);
+	float *out = (float*)&result_buffer[0][0][0];
+	float *vec = (float*)gdextension_packed_color_array_operator_index(&a, p_index);
+	out[0] = vec[0];
+	out[1] = vec[1];
+	out[2] = vec[2];
+	out[3] = vec[3];
 }
-void js_packed_byte_array_operator_index_set(uint32_t a1, uint32_t a2, int64_t p_index, uint8_t p_value) {
+void js_packed_byte_array_operator_index_set(uint32_t a1, uint32_t a2, int64_t p_index) {
 	uint32_t a[2] = {a1, a2};
+	uint8_t p_value = params_buffer[0][0][0];
 	*gdextension_packed_byte_array_operator_index(&a, p_index) = p_value;
 }
-void js_packed_float32_array_operator_index_set(uint32_t a1, uint32_t a2, int64_t p_index, float p_value) {
+void js_packed_float32_array_operator_index_set(uint32_t a1, uint32_t a2, int64_t p_index) {
 	uint32_t a[2] = {a1, a2};
+	float p_value = *(float*)&params_buffer[0][0][0];
 	*gdextension_packed_float32_array_operator_index(&a, p_index) = p_value;
 }
-void js_packed_float64_array_operator_index_set(uint32_t a1, uint32_t a2, int64_t p_index, double p_value) {
+void js_packed_float64_array_operator_index_set(uint32_t a1, uint32_t a2, uint32_t p_index) {
 	uint32_t a[2] = {a1, a2};
+	double p_value = *(double*)&params_buffer[0][0][0];
 	*gdextension_packed_float64_array_operator_index(&a, p_index) = p_value;
 }
-void js_packed_int32_array_operator_index_set(uint32_t a1, uint32_t a2, int64_t p_index, int32_t p_value) {
+void js_packed_int32_array_operator_index_set(uint32_t a1, uint32_t a2, uint32_t p_index) {
 	uint32_t a[2] = {a1, a2};
+	int32_t p_value = *(int32_t*)&params_buffer[0][0][0];
 	*gdextension_packed_int32_array_operator_index(&a, p_index) = p_value;
 }
-void js_packed_int64_array_operator_index_set(uint32_t a1, uint32_t a2, int64_t p_index, int64_t p_value) {
+void js_packed_int64_array_operator_index_set(uint32_t a1, uint32_t a2, uint32_t p_index) {
 	uint32_t a[2] = {a1, a2};
+	int64_t p_value = *(int64_t*)&params_buffer[0][0][0];
 	*gdextension_packed_int64_array_operator_index(&a, p_index) = p_value;
 }
-void js_packed_vector2_array_operator_index_set(uint32_t a1, uint32_t a2, int64_t p_index, float x, float y) {
+void js_packed_vector2_array_operator_index_set(uint32_t a1, uint32_t a2, uint32_t p_index) {
 	uint32_t a[2] = {a1, a2};
+	float x = *(float*)&params_buffer[0][0][0];
+	float y = *(float*)&params_buffer[0][0][1];
 	float* vec = (float*)gdextension_packed_vector2_array_operator_index(&a, p_index);
 	vec[0] = x;
 	vec[1] = y;
 }
-void js_packed_vector3_array_operator_index_set(uint32_t a1, uint32_t a2, int64_t p_index, float x, float y, float z) {
+void js_packed_vector3_array_operator_index_set(uint32_t a1, uint32_t a2, uint32_t p_index) {
 	uint32_t a[2] = {a1, a2};
+	float x = *(float*)&params_buffer[0][0][0];
+	float y = *(float*)&params_buffer[0][0][1];
+	float z = *(float*)&params_buffer[0][0][2];
 	float* vec = (float*)gdextension_packed_vector3_array_operator_index(&a, p_index);
 	vec[0] = x;
 	vec[1] = y;
 	vec[2] = z;
 }
-void js_packed_vector4_array_operator_index_set(uint32_t a1, uint32_t a2, int64_t p_index, float x, float y, float z, float w) {
+void js_packed_vector4_array_operator_index_set(uint32_t a1, uint32_t a2, uint32_t p_index) {
 	uint32_t a[2] = {a1, a2};
+	float x = *(float*)&params_buffer[0][0][0];
+	float y = *(float*)&params_buffer[0][0][1];
+	float z = *(float*)&params_buffer[0][0][2];
+	float w = *(float*)&params_buffer[0][0][3];
 	float* vec = (float*)gdextension_packed_vector4_array_operator_index(&a, p_index);
 	vec[0] = x;
 	vec[1] = y;
 	vec[2] = z;
 	vec[3] = w;
 }
-void js_packed_color_array_operator_index_set(uint32_t a1, uint32_t a2, int64_t p_index, float r, float g, float b, float a) {
+void js_packed_color_array_operator_index_set(uint32_t a1, uint32_t a2, uint32_t p_index) {
 	uint32_t self[2] = {a1, a2};
+	float r = *(float*)&params_buffer[0][0][0];
+	float g = *(float*)&params_buffer[0][0][1];
+	float b = *(float*)&params_buffer[0][0][2];
+	float a = *(float*)&params_buffer[0][0][3];
 	float* vec = (float*)gdextension_packed_color_array_operator_index(&self, p_index);
 	vec[0] = r;
 	vec[1] = g;
 	vec[2] = b;
 	vec[3] = a;
 }
-void js_packed_string_array_operator_index_set(uint32_t a1, uint32_t a2, int64_t p_index, uint32_t p_value) {
+void js_packed_string_array_operator_index_set(uint32_t a1, uint32_t a2, uint32_t p_index) {
 	uint32_t a[2] = {a1, a2};
+	uint32_t p_value = params_buffer[0][0][0];
 	*(uint32_t*)gdextension_packed_string_array_operator_index(&a, p_index) = p_value;
 }
 uint32_t js_array_operator_index(uint32_t a, int64_t p_index) {
@@ -527,7 +574,7 @@ void js_object_bind_method_call(uint32_t method, uint32_t object, int64_t argc) 
 	gdextension_object_method_bind_call((void *)method, (void *)object, (const GDExtensionConstVariantPtr *)&params_buffer[0][0][0], argc, &result_buffer[0][0][0], &error);
 }
 void js_object_method_bind_ptrcall(uint32_t method, uint32_t object) {
-	gdextension_object_method_bind_ptrcall((void *)method, (void *)object, (const GDExtensionConstVariantPtr *)&params_buffer[0][0][0], &result_buffer[0][0][0]);
+	gdextension_object_method_bind_ptrcall((void *)method, (void *)object, (const GDExtensionConstTypePtr *)&params_points, &result_buffer[0][0][0]);
 }
 void js_object_destroy(uint32_t object) {
 	gdextension_object_destroy((void *)object);
@@ -550,8 +597,9 @@ void js_object_set_instance_binding(uint32_t object, uint32_t token, uint32_t bi
 void js_object_free_instance_binding(uint32_t object, uint32_t token) {
 	gdextension_object_free_instance_binding((void *)object, (void*)token);
 }
-void js_object_set_instance(uint32_t object, uint32_t extension_class_name, uint32_t instance) {
-	gdextension_object_set_instance((void *)object, &extension_class_name, &instance);
+void js_object_set_instance(uint32_t object, uint32_t extension_class_name, val instance) {
+	JavascriptUserData *val = new JavascriptUserData{instance};
+	gdextension_object_set_instance((void *)object, &extension_class_name, val);
 }
 uint32_t js_object_get_class_name(uint32_t object, uint32_t token) {
 	uint32_t result;
@@ -565,8 +613,9 @@ uint32_t js_object_cast_to(uint32_t object, uint32_t class_tag) {
 uint32_t js_object_get_instance_from_id(uint64_t id) {
 	return (uint32_t)gdextension_object_get_instance_from_id(id);
 }
-uint64_t js_object_get_instance_id(uint32_t object) {
-	return gdextension_object_get_instance_id((void *)object);
+double js_object_get_instance_id(uint32_t object) {
+	uint64_t result = gdextension_object_get_instance_id((void *)object);
+	return *(double*)&result;
 }
 bool js_object_has_script_method(uint32_t object, uint32_t method) {
 	return gdextension_object_has_script_method((void *)object, &method);
@@ -688,70 +737,129 @@ uint32_t js_classdb_get_class_tag(uint32_t name) {
 }
 
 GDExtensionBool extension_class3_set_func(GDExtensionClassInstancePtr p_instance, GDExtensionConstStringNamePtr p_name, GDExtensionConstVariantPtr p_value) {
-	return false;
 	val info = ((JavascriptUserData*)p_instance)->value;
 	uint32_t *n = (uint32_t*)p_name;
 	uint32_t *v = (uint32_t*)p_value;
-	return (GDExtensionBool)info.call<bool>("set", (uint32_t)p_instance, n[0], v[0], v[1], v[2], v[3], v[4], v[5]);
+	return (GDExtensionBool)info.call<bool>("set", n[0], v[0], v[1], v[2], v[3], v[4], v[5]);
 }
 GDExtensionBool extension_class3_get_func(GDExtensionClassInstancePtr p_instance, GDExtensionConstStringNamePtr p_name, GDExtensionVariantPtr r_ret) {
-	return false;
 	val info = ((JavascriptUserData*)p_instance)->value;
 	uint32_t *n = (uint32_t*)p_name;
-	bool valid = info.call<bool>("get", (uint32_t)p_instance, n[0]);
+	bool valid = info.call<bool>("get", n[0]);
 	uint32_t *v = (uint32_t*)r_ret;
 	for (int i = 0; i < 6; i++) {
-		result_buffer[0][0][i] = v[i];
+		v[i] = params_buffer[0][0][i];
 	}
 	return valid;
 }
 uint64_t extension_class3_get_rid_func(GDExtensionClassInstancePtr p_instance) {
-	return 0;
 	val info = ((JavascriptUserData*)p_instance)->value;
-	double rid = info.call<double>("get_rid", (uint32_t)p_instance);
+	double rid = info.call<double>("get_rid");
 	return *(uint64_t *)&rid;
 }
 const GDExtensionPropertyInfo *extension_class3_get_property_list_func(GDExtensionClassInstancePtr p_instance, uint32_t *r_count) {
+	val info = ((JavascriptUserData*)p_instance)->value;
+	val list = info.call<val>("get_property_list");
+	if (list.isArray()) {
+		*r_count = list["length"].as<uint32_t>();
+		size_t base = sizeof(GDExtensionPropertyInfo) * (*r_count);
+		uint32_t *arena = (uint32_t*)gdextension_mem_alloc(base+sizeof(uintptr_t)*3*(*r_count));
+		GDExtensionPropertyInfo *result = (GDExtensionPropertyInfo*)arena;
+		for (int i = 0; i < *r_count; i++) {
+			val prop = list[i];
+			arena[base+i*3+0] = prop["name"].as<uint32_t>();
+			arena[base+i*3+1] = prop["class_name"].as<uint32_t>();
+			arena[base+i*3+2] = prop["hint_string"].as<uint32_t>();
+			result[i].name = &arena[base+i*3+0];
+			result[i].type = (GDExtensionVariantType)prop["type"].as<uint32_t>();
+			result[i].class_name = &arena[base+i*3+1];
+			result[i].hint = prop["hint"].as<uint32_t>();
+			result[i].hint_string = &arena[base+i*3+2];
+			result[i].usage = prop["usage"].as<uint32_t>();
+		}
+		return result;
+	}
 	return nullptr;
 }
 void extension_class3_free_property_list_func(GDExtensionClassInstancePtr p_instance, const GDExtensionPropertyInfo *p_list, uint32_t p_count) {
-
+	gdextension_mem_free((void*)p_list);
 }
 GDExtensionBool extension_class3_property_can_revert_func(GDExtensionClassInstancePtr p_instance, GDExtensionConstStringNamePtr p_name) {
-
+	val info = ((JavascriptUserData*)p_instance)->value;
+	uint32_t *n = (uint32_t*)p_name;
+	return (GDExtensionBool)info.call<bool>("property_can_revert", n[0]);
 }
 GDExtensionBool extension_class3_property_get_revert_func(GDExtensionClassInstancePtr p_instance, GDExtensionConstStringNamePtr p_name, GDExtensionVariantPtr r_ret) {
-
+	val info = ((JavascriptUserData*)p_instance)->value;
+	uint32_t *n = (uint32_t*)p_name;
+	bool valid = info.call<bool>("property_get_revert", n[0]);
+	uint32_t *v = (uint32_t*)r_ret;
+	for (int i = 0; i < 6; i++) {
+		v[i] = params_buffer[0][0][i];
+	}
+	return valid;
 }
 GDExtensionBool extension_class3_validate_property_func(GDExtensionClassInstancePtr p_instance, GDExtensionPropertyInfo *p_property) {
-
+	val info = ((JavascriptUserData*)p_instance)->value;
+	val prop = val::object();
+	prop.set("name", p_property->name);
+	prop.set("type", p_property->type);
+	prop.set("class_name", p_property->class_name);
+	prop.set("hint", p_property->hint);
+	prop.set("hint_string", p_property->hint_string);
+	prop.set("usage", p_property->usage);
+	return (GDExtensionBool)info.call<bool>("validate_property", prop);
 }
 void extension_class3_notification_func(GDExtensionClassInstancePtr p_instance, int32_t p_what, GDExtensionBool p_reversed) {
-
+	val info = ((JavascriptUserData*)p_instance)->value;
+	info.call<void>("notification", p_what, (bool)p_reversed);
 }
 void extension_class3_to_string_func(GDExtensionClassInstancePtr p_instance, GDExtensionBool *r_is_valid, GDExtensionStringPtr p_out) {
-
+	val info = ((JavascriptUserData*)p_instance)->value;
+	bool result = info.call<bool>("to_string");
+	if (result) {
+		p_out = (GDExtensionStringPtr)params_buffer[0][0][0];
+		*r_is_valid = true;
+	} else {
+		*r_is_valid = false;
+	}
 }
 void extension_class3_reference_func(GDExtensionClassInstancePtr p_instance) {
-
+	val info = ((JavascriptUserData*)p_instance)->value;
+	info.call<void>("reference");
 }
 void extension_class3_unreference_func(GDExtensionClassInstancePtr p_instance) {
-
+	val info = ((JavascriptUserData*)p_instance)->value;
+	info.call<void>("unreference");
 }
 GDExtensionObjectPtr extension_class3_create_instance_func(void *p_class_userdata) {
-
+	val info = ((JavascriptUserData*)p_class_userdata)->value;
+	uint32_t instance = info.call<uint32_t>("create_instance");
+	return (GDExtensionObjectPtr)instance;
 }
 void extension_class3_free_instance_func(void *p_class_userdata, GDExtensionClassInstancePtr p_instance) {
-
+	val info = ((JavascriptUserData*)p_instance)->value;
+	info.call<void>("free", (uint32_t)p_instance);
+	delete (JavascriptUserData*)p_instance;
 }
-GDExtensionClassInstancePtr extension_class3_recreate_instance_func(void *p_class_userdata, GDExtensionObjectPtr p_object) {
-
+void *extension_class3_get_virtual_call_data_func(void *p_class_userdata, GDExtensionConstStringNamePtr p_name) {
+	return p_class_userdata;
 }
-GDExtensionClassCallVirtual extension_class3_get_virtual_func(void *p_class_userdata, GDExtensionConstStringNamePtr p_name) {
-
+void extension_class3_call_virtual_with_data_func(GDExtensionClassInstancePtr p_instance, GDExtensionConstStringNamePtr p_name, void *p_virtual_call_userdata, const GDExtensionConstTypePtr *p_args, GDExtensionTypePtr r_ret) {
+	val info = ((JavascriptUserData*)p_virtual_call_userdata)->value;
+	uint32_t *n = (uint32_t*)p_name;
+	for (int i = 0; i < 6; i++) {
+		uint32_t *v = (uint32_t*)p_args[i];
+		for (int j = 0; j < 6; j++) {
+			params_buffer[0][i][j] = v[j];
+		}
+	}
+	info.call<void>("call_virtual", n[0]);
+	uint32_t *v = (uint32_t*)r_ret;
+	for (int i = 0; i < 6; i++) {
+		v[i] = result_buffer[0][0][i];
+	}
 }
-void *extension_class3_get_virtual_call_data_func(void *p_class_userdata, GDExtensionConstStringNamePtr p_name) {}
-void extension_class3_call_virtual_with_data_func(GDExtensionClassInstancePtr p_instance, GDExtensionConstStringNamePtr p_name, void *p_virtual_call_userdata, const GDExtensionConstTypePtr *p_args, GDExtensionTypePtr r_ret) {}
 
 void js_classdb_register_extension_class3(uint32_t token, uint32_t class_name, uint32_t base_class_name, val info) {
 	GDExtensionClassCreationInfo3 creation_info = {};
@@ -781,15 +889,19 @@ void js_classdb_register_extension_class3(uint32_t token, uint32_t class_name, u
 		(GDExtensionConstStringNamePtr)&base_class_name, &creation_info);
 }
 
-uint32_t get_library_path(uint32_t token) {
+uint32_t js_get_library_path(uint32_t token) {
 	uint32_t path;
 	GDExtension::_get_library_path((GDExtensionClassLibraryPtr)token, &path);
 	return path;
+}
+uint32_t js_classdb_construct_object(uint32_t class_name) {
+	return (uint32_t)gdextension_classdb_construct_object(&class_name);
 }
 
 EMSCRIPTEN_BINDINGS(my_module) {
 	function("gdextension_read_result_buffer", &js_read_result_buffer);
 	function("gdextension_write_params_buffer", &js_write_params_buffer);
+	function("gdextension_write_params_buffer16", &js_write_params_buffer16);
 	function("gdextension_get_godot_version", &js_get_godot_version);
 	function("gdextension_mem_alloc", &js_mem_alloc);
 	function("gdextension_mem_realloc", &js_mem_realloc);
@@ -916,5 +1028,6 @@ EMSCRIPTEN_BINDINGS(my_module) {
 	function("gdextension_classdb_get_class_tag", &js_classdb_get_class_tag);
 	function("gdextension_classdb_get_method_bind", &js_classdb_get_method_bind);
 	function("gdextension_classdb_register_extension_class3", &js_classdb_register_extension_class3);
-	function("gdextension_get_library_path", &get_library_path);
+	function("gdextension_get_library_path", &js_get_library_path);
+	function("gdextension_classdb_construct_object", &js_classdb_construct_object);
 }
