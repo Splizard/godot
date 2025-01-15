@@ -446,11 +446,6 @@ void js_packed_int64_array_operator_index(uint32_t a1, uint32_t a2, uint32_t p_i
 	int64_t *out = (int64_t*)&result_buffer[0][0][0];
 	*out = *gdextension_packed_int64_array_operator_index(&a, p_index);
 }
-void js_packed_string_array_operator_index(uint32_t a1, uint32_t a2, uint32_t p_index) {
-	uint32_t a[2] = {a1, a2};
-	uint32_t *out = (uint32_t*)&result_buffer[0][0][0];
-	*out = *(uint32_t *)(GDExtensionStringPtr)gdextension_packed_string_array_operator_index(&a, p_index);
-}
 void js_packed_vector2_array_operator_index(uint32_t a1, uint32_t a2, uint32_t p_index) {
 	uint32_t a[2] = {a1, a2};
 	float *out = (float*)&result_buffer[0][0][0];
@@ -551,13 +546,19 @@ void js_packed_color_array_operator_index_set(uint32_t a1, uint32_t a2, uint32_t
 	vec[2] = b;
 	vec[3] = a;
 }
-void js_packed_string_array_operator_index_set(uint32_t a1, uint32_t a2, uint32_t p_index) {
+uint32_t js_packed_string_array_operator_index(uint32_t a1, uint32_t a2, uint32_t p_index) {
 	uint32_t a[2] = {a1, a2};
-	uint32_t p_value = params_buffer[0][0][0];
+	return *(uint32_t *)(GDExtensionStringPtr)gdextension_packed_string_array_operator_index(&a, p_index);
+}
+void js_packed_string_array_operator_index_set(uint32_t a1, uint32_t a2, uint32_t p_index, uint32_t p_value) {
+	uint32_t a[2] = {a1, a2};
 	*(uint32_t*)gdextension_packed_string_array_operator_index(&a, p_index) = p_value;
 }
-uint32_t js_array_operator_index(uint32_t a, uint32_t p_index) {
-	return (uintptr_t)gdextension_array_operator_index(&a, p_index);
+void js_array_operator_index(uint32_t a, uint32_t p_index) {
+	uint32_t *val = (uint32_t*)gdextension_array_operator_index(&a, p_index);
+	for (int i = 0; i < 6; i++) {
+		result_buffer[0][0][i] = val[i];
+	}
 }
 void js_array_operator_index_set(uint32_t a, uint32_t p_index, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6) {
 	uint32_t value[6] = {v1, v2, v3, v4, v5, v6};
@@ -572,9 +573,12 @@ void js_array_ref(uint32_t a, uint32_t from) {
 void js_array_set_typed(uint32_t a, uint32_t p_type, uint32_t class_name, uint32_t script) {
 	gdextension_array_set_typed(&a, (GDExtensionVariantType)p_type, &class_name, &script);
 }
-uintptr_t js_dictionary_operator_index(uint32_t d, uint32_t key1, uint32_t key2, uint32_t key3, uint32_t key4, uint32_t key5, uint32_t key6) {
+void js_dictionary_operator_index(uint32_t d, uint32_t key1, uint32_t key2, uint32_t key3, uint32_t key4, uint32_t key5, uint32_t key6) {
 	uint32_t key[6] = {key1, key2, key3, key4, key5, key6};
-	return (uintptr_t)gdextension_dictionary_operator_index(&d, &key);
+	uint32_t *val = (uint32_t*)gdextension_dictionary_operator_index(&d, &key);
+	for (int i = 0; i < 6; i++) {
+		result_buffer[0][0][i] = val[i];
+	}
 }
 void js_dictionary_operator_index_set(uint32_t d, uint32_t key1, uint32_t key2, uint32_t key3, uint32_t key4, uint32_t key5, uint32_t key6, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6) {
 	uint32_t key[6] = {key1, key2, key3, key4, key5, key6};
@@ -862,7 +866,7 @@ GDExtensionObjectPtr extension_class3_create_instance_func(void *p_class_userdat
 void extension_class3_free_instance_func(void *p_class_userdata, GDExtensionClassInstancePtr p_instance) {
 	val info = ((JavascriptUserData*)p_instance)->value;
 	info.call<void>("free", (uint32_t)p_instance);
-	delete (JavascriptUserData*)p_instance;
+	//delete (JavascriptUserData*)p_instance;
 }
 void *extension_class3_get_virtual_call_data_func(void *p_class_userdata, GDExtensionConstStringNamePtr p_name) {
 	val info = ((JavascriptUserData*)p_class_userdata)->value;
