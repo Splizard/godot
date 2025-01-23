@@ -858,7 +858,7 @@ void extension_class3_unreference_func(GDExtensionClassInstancePtr p_instance) {
 	val info = ((JavascriptUserData*)p_instance)->value;
 	info.call<void>("unreference");
 }
-GDExtensionObjectPtr extension_class3_create_instance_func(void *p_class_userdata) {
+GDExtensionObjectPtr extension_class3_create_instance_func(void *p_class_userdata, GDExtensionBool post_notify) {
 	val info = ((JavascriptUserData*)p_class_userdata)->value;
 	uint32_t instance = info.call<uint32_t>("create_instance");
 	return (GDExtensionObjectPtr)instance;
@@ -866,7 +866,7 @@ GDExtensionObjectPtr extension_class3_create_instance_func(void *p_class_userdat
 void extension_class3_free_instance_func(void *p_class_userdata, GDExtensionClassInstancePtr p_instance) {
 	val info = ((JavascriptUserData*)p_instance)->value;
 	info.call<void>("free", (uint32_t)p_instance);
-	//delete (JavascriptUserData*)p_instance;
+	delete (JavascriptUserData*)p_instance;
 }
 void *extension_class3_get_virtual_call_data_func(void *p_class_userdata, GDExtensionConstStringNamePtr p_name) {
 	val info = ((JavascriptUserData*)p_class_userdata)->value;
@@ -922,7 +922,7 @@ void js_classdb_register_extension_class_signal(uint32_t token, uint32_t parent_
 }
 
 void js_classdb_register_extension_class3(uint32_t token, uint32_t class_name, uint32_t base_class_name, val info) {
-	GDExtensionClassCreationInfo3 creation_info = {};
+	GDExtensionClassCreationInfo4 creation_info = {};
 	if (info.hasOwnProperty("is_virtual")) creation_info.is_virtual = (GDExtensionBool)info["is_virtual"].as<bool>();
 	if (info.hasOwnProperty("is_abstract")) creation_info.is_abstract = (GDExtensionBool)info["is_abstract"].as<bool>();
 	if (info.hasOwnProperty("is_exposed")) creation_info.is_exposed = (GDExtensionBool)info["is_exposed"].as<bool>();
@@ -938,15 +938,16 @@ void js_classdb_register_extension_class3(uint32_t token, uint32_t class_name, u
 	creation_info.to_string_func = extension_class3_to_string_func;
 	creation_info.reference_func = extension_class3_reference_func;
 	creation_info.unreference_func = extension_class3_unreference_func;
-	if (info.hasOwnProperty("create_instance_func")) creation_info.create_instance_func = extension_class3_create_instance_func;
+	if (info.hasOwnProperty("create_instance")) creation_info.create_instance_func = extension_class3_create_instance_func;
 	creation_info.free_instance_func = extension_class3_free_instance_func;
-	if (info.hasOwnProperty("get_virtual_call_data_func")) creation_info.get_virtual_call_data_func = extension_class3_get_virtual_call_data_func;
-	if (info.hasOwnProperty("call_virtual_with_data_func")) creation_info.call_virtual_with_data_func = extension_class3_call_virtual_with_data_func;
-	creation_info.get_rid_func = extension_class3_get_rid_func;
+	creation_info.get_virtual_func = nullptr;
+	if (info.hasOwnProperty("get_virtual_call_data")) creation_info.get_virtual_call_data_func = extension_class3_get_virtual_call_data_func;
+	if (info.hasOwnProperty("get_virtual_call_data")) creation_info.call_virtual_with_data_func = extension_class3_call_virtual_with_data_func;
+	//creation_info.get_rid_func = extension_class3_get_rid_func;
 	JavascriptUserData *userdata = new JavascriptUserData();
 	userdata->value = val(info);
 	creation_info.class_userdata = userdata;
-	GDExtension::_register_extension_class3(
+	GDExtension::_register_extension_class4(
 		(GDExtensionClassLibraryPtr)token, (GDExtensionConstStringNamePtr)&class_name,
 		(GDExtensionConstStringNamePtr)&base_class_name, &creation_info);
 }
