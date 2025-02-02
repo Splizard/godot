@@ -868,7 +868,7 @@ void extension_class3_free_instance_func(void *p_class_userdata, GDExtensionClas
 	info.call<void>("free", (uint32_t)p_instance);
 	delete (JavascriptUserData*)p_instance;
 }
-void *extension_class3_get_virtual_call_data_func(void *p_class_userdata, GDExtensionConstStringNamePtr p_name) {
+void *extension_class3_get_virtual_call_data_func(void *p_class_userdata, GDExtensionConstStringNamePtr p_name, uint32_t hash) {
 	val info = ((JavascriptUserData*)p_class_userdata)->value;
 	uint32_t *n = (uint32_t*)p_name;
 	return (void *)(uint32_t)info.call<uint32_t>("get_virtual_call_data", n[0]);
