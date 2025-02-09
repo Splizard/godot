@@ -601,7 +601,7 @@ void js_object_destroy(uint32_t object) {
 	gdextension_object_destroy((void *)object);
 }
 uint32_t js_global_get_singleton(uint32_t name) {
-	return *(uint32_t*)gdextension_global_get_singleton(&name);
+	return (uint32_t)gdextension_global_get_singleton(&name);
 }
 
 void *js_object_instance_binding_create_callback(void *token, void *p_instance) { return 0; } // TODO
