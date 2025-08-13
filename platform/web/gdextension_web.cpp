@@ -8,8 +8,8 @@
 
 using namespace emscripten;
 
-uint32_t result_buffer[3][16][16];
-uint32_t params_buffer[3][16][16];
+uint32_t result_buffer[3][16][16] = {};
+uint32_t params_buffer[3][16][16] = {};
 void *params_points[16] = {
 	&params_buffer[0][0][0], &params_buffer[0][1][0], &params_buffer[0][2][0], &params_buffer[0][3][0],
 	&params_buffer[0][4][0], &params_buffer[0][5][0], &params_buffer[0][6][0], &params_buffer[0][7][0],
@@ -154,7 +154,7 @@ bool js_variant_set_keyed(
 	gdextension_variant_set_keyed(&self, &key, &val, (GDExtensionBool *)&valid);
 	return valid;
 }
-int js_variant_set_indexed(
+int32_t js_variant_set_indexed(
 	uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6,
 	uint32_t index,
 	uint32_t val1, uint32_t val2, uint32_t val3, uint32_t val4, uint32_t val5, uint32_t val6
@@ -164,7 +164,9 @@ int js_variant_set_indexed(
 	bool valid;
 	bool oob;
 	gdextension_variant_set_indexed(&self, index, &val, (GDExtensionBool *)&valid, (GDExtensionBool *)&oob);
-	return valid + oob;
+	if (!valid) return 0;
+	if (oob) return 2;
+	return 1;
 }
 bool js_variant_get(
 	uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6,
@@ -195,7 +197,7 @@ bool js_variant_get_keyed(
 	gdextension_variant_get_keyed(&self, &key, &result_buffer[0], (GDExtensionBool *)&valid);
 	return valid;
 }
-bool js_variant_get_indexed(
+int32_t js_variant_get_indexed(
 	uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6,
 	uint32_t index
 ) {
@@ -203,7 +205,9 @@ bool js_variant_get_indexed(
 	bool valid;
 	bool oob;
 	gdextension_variant_get_indexed(&self, index, &result_buffer[0], (GDExtensionBool *)&valid, (GDExtensionBool *)&oob);
-	return valid + oob;
+	if (!valid) return 0;
+	if (oob) return 2;
+	return 1;
 }
 bool js_variant_iter_init(
 	uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6
@@ -214,11 +218,13 @@ bool js_variant_iter_init(
 	return valid;
 }
 bool js_variant_iter_next(
-	uint32_t i1, uint32_t i2, uint32_t i3, uint32_t i4, uint32_t i5, uint32_t i6
+	uint32_t i1, uint32_t i2, uint32_t i3, uint32_t i4, uint32_t i5, uint32_t i6,
+	uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6,
 ) {
-	uint32_t iter[6] = {i1, i2, i3, i4, i5, i6};
+	uint32_t self[6] = {i1, i2, i3, i4, i5, i6};
+	uint32_t iter[6] = {v1, v2, v3, v4, v5, v6};
 	bool valid;
-	gdextension_variant_iter_next(&iter, &result_buffer[0], (GDExtensionBool *)&valid);
+	gdextension_variant_iter_next(&self, &iter, (GDExtensionBool *)&valid);
 	return valid;
 }
 bool js_variant_iter_get(
@@ -280,9 +286,13 @@ bool js_variant_has_method(uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, u
 bool js_variant_has_member(uint32_t p_type, uint32_t p_member) {
 	return gdextension_variant_has_member((GDExtensionVariantType)p_type, &p_member);
 }
-bool js_variant_has_key(uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6, uint32_t p_key) {
+int32_t js_variant_has_key(uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6, uint32_t p_key) {
 	uint32_t self[6] = {v1, v2, v3, v4, v5, v6};
-	return gdextension_variant_has_key(&self, &p_key, (GDExtensionBool*)&result_buffer[0]);
+	bool valid;
+	bool has_key = gdextension_variant_has_key(&self, &p_key, &valid);
+	if (!valid) return -1;
+	if (has_key) return 1;
+	return 0;
 }
 double js_variant_get_object_instance_id(uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6) {
 	uint32_t self[6] = {v1, v2, v3, v4, v5, v6};
@@ -592,9 +602,11 @@ void js_dictionary_set_typed(uint32_t d, uint32_t key_type, uint32_t key_class, 
 	gdextension_dictionary_set_typed(&d, (GDExtensionVariantType)key_type, &key_class, &key_script, (GDExtensionVariantType)p_type, &class_name, &script);
 }
 void js_object_bind_method_call(uint32_t method, uint32_t object, uint32_t argc) {
+	memset(result_buffer, 0, sizeof(result_buffer));
 	gdextension_object_method_bind_call((void *)method, (void *)object, (const GDExtensionConstVariantPtr *)&params_points, argc, &result_buffer[0][0][0], &error);
 }
 void js_object_method_bind_ptrcall(uint32_t method, uint32_t object) {
+	memset(result_buffer, 0, sizeof(result_buffer));
 	gdextension_object_method_bind_ptrcall((void *)method, (void *)object, (const GDExtensionConstTypePtr *)&params_points, &result_buffer[0][0][0]);
 }
 void js_object_destroy(uint32_t object) {
@@ -663,13 +675,13 @@ GDExtensionBool js_script_instance_set(GDExtensionScriptInstanceDataPtr p_instan
 	ScriptInstanceWrapper *wrapper = (ScriptInstanceWrapper*)p_instance;
 	uint32_t *name = (uint32_t*)p_name;
 	uint32_t *v = (uint32_t *)p_value;
-	return wrapper->info.call<bool>("set", wrapper->instance, name, v[0], v[1], v[2], v[3], v[4], v[5]);
+	return wrapper->info.call<bool>("set", wrapper->instance, name[0], v[0], v[1], v[2], v[3], v[4], v[5]);
 }
 GDExtensionBool js_script_instance_get(GDExtensionScriptInstanceDataPtr p_instance, GDExtensionConstStringNamePtr p_name, GDExtensionVariantPtr p_r_value) {
 	ScriptInstanceWrapper *wrapper = (ScriptInstanceWrapper*)p_instance;
 	uint32_t *name = (uint32_t*)p_name;
 	uint32_t *v = (uint32_t*)p_r_value;
-	bool valid = wrapper->info.call<bool>("get", wrapper->instance, name);
+	bool valid = wrapper->info.call<bool>("get", wrapper->instance, name[0]);
 	for (int i = 0; i < 6; i++) {
 		result_buffer[0][0][i] = v[i];
 	}
@@ -828,11 +840,14 @@ GDExtensionBool extension_class3_property_get_revert_func(GDExtensionClassInstan
 GDExtensionBool extension_class3_validate_property_func(GDExtensionClassInstancePtr p_instance, GDExtensionPropertyInfo *p_property) {
 	val info = ((JavascriptUserData*)p_instance)->value;
 	val prop = val::object();
-	prop.set("name", p_property->name);
+	uint32_t *name = (uint32_t*)p_property->name;
+	uint32_t *class_name = (uint32_t*)p_property->class_name;
+	uint32_t *hint_string = (uint32_t*)p_property->hint_string;
+	prop.set("name", name[0]);
 	prop.set("type", p_property->type);
-	prop.set("class_name", p_property->class_name);
+	prop.set("class_name", class_name[0]);
 	prop.set("hint", p_property->hint);
-	prop.set("hint_string", p_property->hint_string);
+	prop.set("hint_string", hint_string[0]);
 	prop.set("usage", p_property->usage);
 	return (GDExtensionBool)info.call<bool>("validate_property", prop);
 }
@@ -927,6 +942,7 @@ void js_classdb_register_extension_class3(uint32_t token, uint32_t class_name, u
 	if (info.hasOwnProperty("is_abstract")) creation_info.is_abstract = (GDExtensionBool)info["is_abstract"].as<bool>();
 	if (info.hasOwnProperty("is_exposed")) creation_info.is_exposed = (GDExtensionBool)info["is_exposed"].as<bool>();
 	if (info.hasOwnProperty("is_runtime")) creation_info.is_runtime = (GDExtensionBool)info["is_runtime"].as<bool>();
+	creation_info.icon_path = nullptr;
 	creation_info.set_func = extension_class3_set_func;
 	creation_info.get_func = extension_class3_get_func;
 	creation_info.get_property_list_func = extension_class3_get_property_list_func;
@@ -938,11 +954,12 @@ void js_classdb_register_extension_class3(uint32_t token, uint32_t class_name, u
 	creation_info.to_string_func = extension_class3_to_string_func;
 	creation_info.reference_func = extension_class3_reference_func;
 	creation_info.unreference_func = extension_class3_unreference_func;
-	if (info.hasOwnProperty("create_instance")) creation_info.create_instance_func = extension_class3_create_instance_func;
+	creation_info.create_instance_func = extension_class3_create_instance_func;
 	creation_info.free_instance_func = extension_class3_free_instance_func;
+	creation_info.recreate_instance_func = nullptr;
 	creation_info.get_virtual_func = nullptr;
-	if (info.hasOwnProperty("get_virtual_call_data")) creation_info.get_virtual_call_data_func = extension_class3_get_virtual_call_data_func;
-	if (info.hasOwnProperty("get_virtual_call_data")) creation_info.call_virtual_with_data_func = extension_class3_call_virtual_with_data_func;
+	creation_info.get_virtual_call_data_func = extension_class3_get_virtual_call_data_func;
+	creation_info.call_virtual_with_data_func = extension_class3_call_virtual_with_data_func;
 	//creation_info.get_rid_func = extension_class3_get_rid_func;
 	JavascriptUserData *userdata = new JavascriptUserData();
 	userdata->value = val(info);

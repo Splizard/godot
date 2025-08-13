@@ -65,7 +65,7 @@ Error GDExtensionJavascriptLoader::initialize(GDExtensionInterfaceGetProcAddress
 	init.set("minimum_initialization_level", 0);
 	init.set("initialize", emscripten::val::null());
 	init.set("deinitialize", emscripten::val::null());
-	Error err = (Error)emscripten::val::global("GDExtension").call<uint32_t>(path.utf8().get_data(), gdextension_javascript_get_proc_address, (uint32_t)(uintptr_t)p_extension.ptr(), init);
+	Error err = (Error)emscripten::val::global("GDExtension").call<uint32_t>(path.utf8().get_data(), gdextension_javascript_get_proc_address, (uint32_t)p_extension.ptr(), init);
 	JsWrapper* wrapper = new JsWrapper{init};
 	r_initialization->userdata = wrapper;
 	if (init["initialize"] != emscripten::val::null()) r_initialization->initialize = gdextension_javascript_initialize;
