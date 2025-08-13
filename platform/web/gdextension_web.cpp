@@ -219,7 +219,7 @@ bool js_variant_iter_init(
 }
 bool js_variant_iter_next(
 	uint32_t i1, uint32_t i2, uint32_t i3, uint32_t i4, uint32_t i5, uint32_t i6,
-	uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6,
+	uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6
 ) {
 	uint32_t self[6] = {i1, i2, i3, i4, i5, i6};
 	uint32_t iter[6] = {v1, v2, v3, v4, v5, v6};
@@ -286,10 +286,11 @@ bool js_variant_has_method(uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, u
 bool js_variant_has_member(uint32_t p_type, uint32_t p_member) {
 	return gdextension_variant_has_member((GDExtensionVariantType)p_type, &p_member);
 }
-int32_t js_variant_has_key(uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6, uint32_t p_key) {
+int32_t js_variant_has_key(uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4, uint32_t v5, uint32_t v6, uint32_t k1, uint32_t k2, uint32_t k3, uint32_t k4, uint32_t k5, uint32_t k6) {
 	uint32_t self[6] = {v1, v2, v3, v4, v5, v6};
+	uint32_t p_key[6] = {k1, k2, k3, k4, k5, k6};
 	bool valid;
-	bool has_key = gdextension_variant_has_key(&self, &p_key, &valid);
+	bool has_key = (bool)gdextension_variant_has_key(&self, &p_key, (GDExtensionBool*)&valid);
 	if (!valid) return -1;
 	if (has_key) return 1;
 	return 0;
