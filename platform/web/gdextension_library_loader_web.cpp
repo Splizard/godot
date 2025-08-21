@@ -61,6 +61,7 @@ Error GDExtensionJavascriptLoader::open_library(const String &p_path) {
 }
 
 Error GDExtensionJavascriptLoader::initialize(GDExtensionInterfaceGetProcAddress p_get_proc_address, const Ref<GDExtension> &p_extension, GDExtensionInitialization *r_initialization) {
+	cgo_extension_init(p_get_proc_address, (GDExtensionClassLibraryPtr)p_extension.ptr(), r_initialization);
 	emscripten::val init = emscripten::val::object();
 	init.set("minimum_initialization_level", 0);
 	init.set("initialize", emscripten::val::null());

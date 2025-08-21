@@ -88,7 +88,10 @@ const Engine = (function () {
 						);
 						return initPromise;
 					}
-					Engine.load(basePath, this.config.fileSizes[`${basePath}.wasm`]);
+					Engine.load(
+						basePath,
+						this.config.fileSizes[`${basePath}.wasm`],
+					);
 				}
 				const me = this;
 				function doInit(promise) {
@@ -100,23 +103,29 @@ const Engine = (function () {
 							const cloned = new Response(response.clone().body, {
 								headers: [["content-type", "application/wasm"]],
 							});
-							Godot(me.config.getModuleConfig(loadPath, cloned)).then(
-								function (module) {
-									module.gdextension_javascript_set_get_proc_address(
-										function (name) {
-											return module["gdextension_" + name];
-										},
-									);
-									const paths = me.config.persistentPaths;
-									module["initFS"](paths).then(function (err) {
-										me.rtenv = module;
-										if (me.config.unloadAfterInit) {
-											Engine.unload();
-										}
-										resolve();
-									});
-								},
-							);
+							Godot(
+								me.config.getModuleConfig(loadPath, cloned),
+							).then(function (module) {
+								window.GD = {};
+								for (const key in module) {
+									if (key.startsWith("gd_")) {
+										window.GD[key.slice(3)] = module[key];
+									}
+								}
+								module.gdextension_javascript_set_get_proc_address(
+									function (name) {
+										return module["gdextension_" + name];
+									},
+								);
+								const paths = me.config.persistentPaths;
+								module["initFS"](paths).then(function (err) {
+									me.rtenv = module;
+									if (me.config.unloadAfterInit) {
+										Engine.unload();
+									}
+									resolve();
+								});
+							});
 						});
 					});
 				}
@@ -142,7 +151,11 @@ const Engine = (function () {
 			 * @returns {Promise} A Promise that resolves once the file is loaded.
 			 */
 			preloadFile: function (file, path) {
-				return preloader.preload(file, path, this.config.fileSizes[file]);
+				return preloader.preload(
+					file,
+					path,
+					this.config.fileSizes[file],
+				);
 			},
 
 			/**
@@ -223,14 +236,17 @@ const Engine = (function () {
 				// Add main-pack argument.
 				const exe = this.config.executable;
 				const pack = this.config.mainPack || `${exe}.pck`;
-				this.config.args = ["--main-pack", pack].concat(this.config.args);
+				this.config.args = ["--main-pack", pack].concat(
+					this.config.args,
+				);
 				// Start and init with execName as loadPath if not inited.
 				const me = this;
-				return Promise.all([this.init(exe), this.preloadFile(pack, pack)]).then(
-					function () {
-						return me.start.apply(me);
-					},
-				);
+				return Promise.all([
+					this.init(exe),
+					this.preloadFile(pack, pack),
+				]).then(function () {
+					return me.start.apply(me);
+				});
 			},
 
 			/**
@@ -241,7 +257,9 @@ const Engine = (function () {
 			 */
 			copyToFS: function (path, buffer) {
 				if (this.rtenv == null) {
-					throw new Error("Engine must be inited before copying files");
+					throw new Error(
+						"Engine must be inited before copying files",
+					);
 				}
 				this.rtenv["copyToFS"](path, buffer);
 			},
@@ -266,7 +284,9 @@ const Engine = (function () {
 			installServiceWorker: function () {
 				if (this.config.serviceWorker && "serviceWorker" in navigator) {
 					try {
-						return navigator.serviceWorker.register(this.config.serviceWorker);
+						return navigator.serviceWorker.register(
+							this.config.serviceWorker,
+						);
 					} catch (e) {
 						return Promise.reject(e);
 					}

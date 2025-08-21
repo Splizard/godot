@@ -49,3 +49,5 @@ public:
 	virtual bool has_library_changed() const override;
 	virtual bool library_exists() const override;
 };
+
+GDExtensionBool cgo_extension_init(GDExtensionInterfaceGetProcAddress p_get_proc_address, GDExtensionClassLibraryPtr p_library, GDExtensionInitialization *r_initialization);

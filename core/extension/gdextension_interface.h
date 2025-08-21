@@ -3018,7 +3018,7 @@ typedef void (*GDExtensionInterfaceClassdbRegisterExtensionClassVirtualMethod)(G
  * @param p_constant_value The constant value.
  * @param p_is_bitfield Whether or not this constant is part of a bitfield.
  */
-typedef void (*GDExtensionInterfaceClassdbRegisterExtensionClassIntegerConstant)(GDExtensionClassLibraryPtr p_library, GDExtensionConstStringNamePtr p_class_name, GDExtensionConstStringNamePtr p_enum_name, GDExtensionConstStringNamePtr p_constant_name, GDExtensionInt p_constant_value, GDExtensionBool p_is_bitfield);
+typedef void (*GDExtensionInterfaceClassdbRegisterExtensionClassIntegerConstant)(GDExtensionClassLibraryPtr p_lcibrary, GDExtensionConstStringNamePtr p_class_name, GDExtensionConstStringNamePtr p_enum_name, GDExtensionConstStringNamePtr p_constant_name, GDExtensionInt p_constant_value, GDExtensionBool p_is_bitfield);
 
 /**
  * @name classdb_register_extension_class_property

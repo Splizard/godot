@@ -25,6 +25,7 @@ web_files = [
     "webmidi_driver.cpp",
     "display_server_web.cpp",
     "gdextension_web.cpp",
+    "gdextension_web_cgo.cpp",
     "gdextension_library_loader_web.cpp",
     "http_client_web.cpp",
     "javascript_bridge_singleton.cpp",
