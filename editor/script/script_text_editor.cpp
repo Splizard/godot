@@ -31,11 +31,13 @@
 #include "script_text_editor.h"
 
 #include "core/config/project_settings.h"
+#include "core/io/dir_access.h"
 #include "core/io/json.h"
 #include "core/math/expression.h"
 #include "core/os/keyboard.h"
 #include "editor/debugger/editor_debugger_node.h"
 #include "editor/doc/editor_help.h"
+#include "editor/docks/filesystem_dock.h"
 #include "editor/editor_node.h"
 #include "editor/editor_string_names.h"
 #include "editor/gui/editor_toaster.h"
@@ -1241,7 +1243,11 @@ void ScriptTextEditor::_lookup_symbol(const String &p_symbol, int p_row, int p_c
 	if (ScriptServer::is_global_class(p_symbol)) {
 		EditorNode::get_singleton()->load_resource(ScriptServer::get_global_class_path(p_symbol));
 	} else if (p_symbol.is_resource_file() || p_symbol.begins_with("uid://")) {
-		EditorNode::get_singleton()->load_scene_or_resource(p_symbol);
+		if (DirAccess::dir_exists_absolute(p_symbol)) {
+			FileSystemDock::get_singleton()->navigate_to_path(p_symbol);
+		} else {
+			EditorNode::get_singleton()->load_scene_or_resource(p_symbol);
+		}
 	} else if (lc_error == OK) {
 		_goto_line(p_row);
 
@@ -2851,6 +2857,8 @@ ScriptTextEditor::ScriptTextEditor() {
 	edit_hb = memnew(HBoxContainer);
 
 	edit_menu = memnew(MenuButton);
+	edit_menu->set_flat(false);
+	edit_menu->set_theme_type_variation("FlatMenuButton");
 	edit_menu->set_text(TTRC("Edit"));
 	edit_menu->set_switch_on_hover(true);
 	edit_menu->set_shortcut_context(this);
@@ -2867,11 +2875,15 @@ ScriptTextEditor::ScriptTextEditor() {
 	set_syntax_highlighter(highlighter);
 
 	search_menu = memnew(MenuButton);
+	search_menu->set_flat(false);
+	search_menu->set_theme_type_variation("FlatMenuButton");
 	search_menu->set_text(TTRC("Search"));
 	search_menu->set_switch_on_hover(true);
 	search_menu->set_shortcut_context(this);
 
 	goto_menu = memnew(MenuButton);
+	goto_menu->set_flat(false);
+	goto_menu->set_theme_type_variation("FlatMenuButton");
 	goto_menu->set_text(TTRC("Go To"));
 	goto_menu->set_switch_on_hover(true);
 	goto_menu->set_shortcut_context(this);
