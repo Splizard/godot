@@ -99,7 +99,7 @@ const Engine = (function () {
 					// This caused a regression with the Mono build (which uses an older emscripten version).
 					// Make sure to test that when refactoring.
 					return new Promise(function (resolve, reject) {
-						promise.then(function (response) {
+						let next = function (response) {
 							const cloned = new Response(response.clone().body, {
 								headers: [["content-type", "application/wasm"]],
 							});
@@ -125,6 +125,19 @@ const Engine = (function () {
 									}
 									resolve();
 								});
+							});
+						};
+						promise.then(function (response) {
+							const go = new Go();
+							WebAssembly.instantiateStreaming(
+								fetch("library.wasm"),
+								go.importObject,
+							).then(function (result) {
+								window.GDExtension = {
+									"res://library.gdextension": {},
+								};
+								go.run(result.instance);
+								next(response);
 							});
 						});
 					});

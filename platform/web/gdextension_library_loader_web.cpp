@@ -61,17 +61,11 @@ Error GDExtensionJavascriptLoader::open_library(const String &p_path) {
 }
 
 Error GDExtensionJavascriptLoader::initialize(GDExtensionInterfaceGetProcAddress p_get_proc_address, const Ref<GDExtension> &p_extension, GDExtensionInitialization *r_initialization) {
-	cgo_extension_init(p_get_proc_address, (GDExtensionClassLibraryPtr)p_extension.ptr(), r_initialization);
-	emscripten::val init = emscripten::val::object();
-	init.set("minimum_initialization_level", 0);
-	init.set("initialize", emscripten::val::null());
-	init.set("deinitialize", emscripten::val::null());
-	Error err = (Error)emscripten::val::global("GDExtension").call<uint32_t>(path.utf8().get_data(), gdextension_javascript_get_proc_address, (uint32_t)p_extension.ptr(), init);
-	JsWrapper* wrapper = new JsWrapper{init};
-	r_initialization->userdata = wrapper;
-	if (init["initialize"] != emscripten::val::null()) r_initialization->initialize = gdextension_javascript_initialize;
-	if (init["deinitialize"] != emscripten::val::null()) r_initialization->deinitialize = gdextension_javascript_deinitialize;
-	return err;
+	GDExtensionBool ok = cgo_extension_init(p_get_proc_address, (GDExtensionClassLibraryPtr)p_extension.ptr(), r_initialization);
+	if (!ok) {
+		return ERR_CANT_OPEN;
+	}
+	return OK;
 }
 void GDExtensionJavascriptLoader::close_library() {}
 bool GDExtensionJavascriptLoader::is_library_open() const {return true;}
