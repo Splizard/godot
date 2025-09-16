@@ -54,17 +54,10 @@
 GDExtensionClassLibraryPtr cgo_library = NULL;
 GDExtensionGodotVersion2 cgo_cached_godot_version = {};
 
-typedef struct {
-    GDExtensionVariantPtr r_return;
-    GDExtensionCallError *r_error;
-    const GDExtensionConstVariantPtr *p_args;
-    GDExtensionInt p_argument_count;
-} reverse_variant_frame;
-
-typedef struct {
-    GDExtensionConstTypePtr r_return;
-    const GDExtensionConstTypePtr *p_args;
-} reverse_unsafe_frame;
+typedef struct { uint64_t part[2]; } result_16;
+typedef struct { uint64_t part[3]; } result_24;
+typedef struct { uint64_t part[4]; } result_32;
+typedef struct { uint64_t part[8]; } result_64;
 
 void cgo_initialize(void *ignore, GDExtensionInitializationLevel level) { go_on_engine_init(level); }
 void cgo_deinitialize(void *ignore, GDExtensionInitializationLevel level) { go_on_engine_exit(level); }
@@ -289,7 +282,7 @@ GDExtensionsInterfaceEditorHelpLoadXmlFromUtf8CharsAndLen gdextension_editor_hel
 GDExtensionInterfaceImagePtrw gdextension_image_ptrw = NULL;
 GDExtensionInterfaceImagePtr gdextension_image_ptr = NULL;
 GDExtensionInterfaceRegisterMainLoopCallbacks gdextension_register_main_loop_callbacks = NULL;
-GDExtensionInterfaceGetGodotVersion gdextension_get_godot_version = NULL;
+GDExtensionInterfaceGetGodotVersion2 gdextension_get_godot_version2 = NULL;
 
 
 EXPORT GDExtensionBool cgo_extension_init(GDExtensionInterfaceGetProcAddress p_get_proc_address, GDExtensionClassLibraryPtr p_library, GDExtensionInitialization *r_initialization) {
@@ -302,7 +295,7 @@ EXPORT GDExtensionBool cgo_extension_init(GDExtensionInterfaceGetProcAddress p_g
 	LOAD_PROC_ADDRESS(print_script_error, GDExtensionInterfacePrintScriptError);
 	LOAD_PROC_ADDRESS(print_script_error_with_message, GDExtensionInterfacePrintScriptErrorWithMessage);
 	LOAD_PROC_ADDRESS(get_native_struct_size, GDExtensionInterfaceGetNativeStructSize);
-	LOAD_PROC_ADDRESS(get_godot_version, GDExtensionInterfaceGetGodotVersion);
+	LOAD_PROC_ADDRESS(get_godot_version2, GDExtensionInterfaceGetGodotVersion2);
 	LOAD_PROC_ADDRESS(variant_new_copy, GDExtensionInterfaceVariantNewCopy);
 	LOAD_PROC_ADDRESS(variant_new_nil, GDExtensionInterfaceVariantNewNil);
 	LOAD_PROC_ADDRESS(variant_destroy, GDExtensionInterfaceVariantDestroy);
@@ -431,7 +424,7 @@ EXPORT GDExtensionBool cgo_extension_init(GDExtensionInterfaceGetProcAddress p_g
 	LOAD_PROC_ADDRESS(placeholder_script_instance_create, GDExtensionInterfacePlaceHolderScriptInstanceCreate);
 	LOAD_PROC_ADDRESS(placeholder_script_instance_update, GDExtensionInterfacePlaceHolderScriptInstanceUpdate);
 	LOAD_PROC_ADDRESS(object_get_script_instance, GDExtensionInterfaceObjectGetScriptInstance);
-	//LOAD_PROC_ADDRESS(object_set_script_instance, GDExtensionInterfaceObjectSetScriptInstance);
+	LOAD_PROC_ADDRESS(object_set_script_instance, GDExtensionInterfaceObjectSetScriptInstance);
 	LOAD_PROC_ADDRESS(classdb_construct_object2, GDExtensionInterfaceClassdbConstructObject2);
 	LOAD_PROC_ADDRESS(classdb_get_method_bind, GDExtensionInterfaceClassdbGetMethodBind);
 	LOAD_PROC_ADDRESS(classdb_get_class_tag, GDExtensionInterfaceClassdbGetClassTag);
@@ -448,25 +441,19 @@ EXPORT GDExtensionBool cgo_extension_init(GDExtensionInterfaceGetProcAddress p_g
 	LOAD_PROC_ADDRESS(get_library_path, GDExtensionInterfaceGetLibraryPath);
 	LOAD_PROC_ADDRESS(editor_add_plugin, GDExtensionInterfaceEditorAddPlugin);
 	LOAD_PROC_ADDRESS(editor_remove_plugin, GDExtensionInterfaceEditorRemovePlugin);
-	//LOAD_PROC_ADDRESS(editor_register_get_classes_used_callback, GDExtensionInterfaceEditorRegisterGetClassesUsedCallback);
+	LOAD_PROC_ADDRESS(editor_register_get_classes_used_callback, GDExtensionInterfaceEditorRegisterGetClassesUsedCallback);
 	LOAD_PROC_ADDRESS(editor_help_load_xml_from_utf8_chars, GDExtensionsInterfaceEditorHelpLoadXmlFromUtf8Chars);
 	LOAD_PROC_ADDRESS(editor_help_load_xml_from_utf8_chars_and_len, GDExtensionsInterfaceEditorHelpLoadXmlFromUtf8CharsAndLen);
 	LOAD_PROC_ADDRESS(image_ptrw, GDExtensionInterfaceImagePtrw);
 	LOAD_PROC_ADDRESS(image_ptr, GDExtensionInterfaceImagePtr);
-	//LOAD_PROC_ADDRESS(register_main_loop_callbacks, GDExtensionInterfaceRegisterMainLoopCallbacks);
+	LOAD_PROC_ADDRESS(register_main_loop_callbacks, GDExtensionInterfaceRegisterMainLoopCallbacks);
     cgo_library = p_library;
     r_initialization->userdata = 0;
     r_initialization->minimum_initialization_level = GDEXTENSION_INITIALIZATION_CORE;
     r_initialization->initialize = cgo_initialize;
     r_initialization->deinitialize = cgo_deinitialize;
 
-    // polyfill
-    GDExtensionGodotVersion version;
-    gdextension_get_godot_version(&version);
-    cgo_cached_godot_version.major = version.major;
-    cgo_cached_godot_version.minor = version.minor;
-    cgo_cached_godot_version.patch = version.patch;
-    cgo_cached_godot_version.string = version.string;
+    gdextension_get_godot_version2(&cgo_cached_godot_version);
 
     for (int i = 1; i < GDEXTENSION_VARIANT_TYPE_VARIANT_MAX; i++) {
     	GDExtensionVariantType v = (GDExtensionVariantType)i;
@@ -824,8 +811,8 @@ void gd_classdb_register(uintptr_t class_name, uintptr_t parent, uintptr_t id, b
         .validate_property_func = cgo_class_validate_property_func,
         .notification_func = (GDExtensionClassNotification2)go_on_extension_instance_notification,
         .to_string_func = cgo_class_to_string_func,
-        .reference_func = (GDExtensionClassReference)cgo_class_reference_func,
-        .unreference_func = (GDExtensionClassUnreference)cgo_class_unreference_func,
+        //.reference_func = (GDExtensionClassReference)cgo_class_reference_func, // FIXME JavaScript error: null function or function signature mismatch
+        //.unreference_func = (GDExtensionClassUnreference)cgo_class_unreference_func, // FIXME JavaScript error: null function or function signature mismatch
         .create_instance_func = cgo_class_create_instance_func,
         .free_instance_func = cgo_class_free_instance_func,
         .get_virtual_call_data_func = cgo_class_get_virtual_call_data_func,
@@ -1045,6 +1032,13 @@ void gd_object_call(uintptr_t obj, uintptr_t fn, ANY result, INT argc, ANY args,
     gdextension_object_method_bind_call((GDExtensionMethodBindPtr)fn, (GDExtensionObjectPtr)obj, (const GDExtensionConstTypePtr*)&points[0], argc, (GDExtensionTypePtr)result, (GDExtensionCallError*)err);
 };
 
+result_24 gd_object_call_24(uintptr_t obj, uintptr_t fn, INT argc, ANY args, ANY err) {
+    void *points[16]; prepare_variants(&points[0], argc, args);
+    result_24 result = {};
+    gdextension_object_method_bind_call((GDExtensionMethodBindPtr)fn, (GDExtensionObjectPtr)obj, (const GDExtensionConstTypePtr*)&points[0], argc, (GDExtensionTypePtr)&result, (GDExtensionCallError*)err);
+    return result;
+};
+
 void gd_object_unsafe_free(uintptr_t obj) {
     gdextension_object_destroy((GDExtensionObjectPtr)obj);
 };
@@ -1100,6 +1094,34 @@ uintptr_t gd_object_method_lookup(uintptr_t class_name, uintptr_t method, INT64(
 void gd_object_unsafe_call(uintptr_t obj, uintptr_t method, ANY result, UINT64(shape), ANY args) {
     void *points[16]; prepare_callframe(1, &points[0], UINT64_FROM(shape), args);
     gdextension_object_method_bind_ptrcall((GDExtensionMethodBindPtr)method, (GDExtensionObjectPtr)obj, (const GDExtensionConstTypePtr*)&points[0], (GDExtensionTypePtr)result);
+};
+
+uint64_t gd_object_unsafe_call_8(uintptr_t obj, uintptr_t method, UINT64(shape), ANY args) {
+    void *points[16]; prepare_callframe(1, &points[0], UINT64_FROM(shape), args);
+    uint64_t result = 0;
+    gdextension_object_method_bind_ptrcall((GDExtensionMethodBindPtr)method, (GDExtensionObjectPtr)obj, (const GDExtensionConstTypePtr*)&points[0], (GDExtensionTypePtr)&result);
+    return result;
+};
+
+result_16 gd_object_unsafe_call_16(uintptr_t obj, uintptr_t method, UINT64(shape), ANY args) {
+    void *points[16]; prepare_callframe(1, &points[0], UINT64_FROM(shape), args);
+    result_16 result = {};
+    gdextension_object_method_bind_ptrcall((GDExtensionMethodBindPtr)method, (GDExtensionObjectPtr)obj, (const GDExtensionConstTypePtr*)&points[0], (GDExtensionTypePtr)&result);
+    return result;
+};
+
+result_32 gd_object_unsafe_call_32(uintptr_t obj, uintptr_t method, UINT64(shape), ANY args) {
+    void *points[16]; prepare_callframe(1, &points[0], UINT64_FROM(shape), args);
+    result_32 result = {};
+    gdextension_object_method_bind_ptrcall((GDExtensionMethodBindPtr)method, (GDExtensionObjectPtr)obj, (const GDExtensionConstTypePtr*)&points[0], (GDExtensionTypePtr)&result);
+    return result;
+};
+
+result_64 gd_object_unsafe_call_64(uintptr_t obj, uintptr_t method, UINT64(shape), ANY args) {
+    void *points[16]; prepare_callframe(1, &points[0], UINT64_FROM(shape), args);
+    result_64 result = {};
+    gdextension_object_method_bind_ptrcall((GDExtensionMethodBindPtr)method, (GDExtensionObjectPtr)obj, (const GDExtensionConstTypePtr*)&points[0], (GDExtensionTypePtr)&result);
+    return result;
 };
 
 GDExtensionBool cgo_class_get_category_func(GDExtensionScriptInstanceDataPtr instance, GDExtensionPropertyInfo *info) {
