@@ -1155,7 +1155,9 @@ String OS_Unix::get_executable_path() const {
 		WARN_PRINT("Couldn't get executable path from /proc/self/exe, using argv[0]");
 		return OS::get_executable_path();
 	}
-	return b;
+	// Strip " (deleted)" suffix if the executable was deleted after being loaded
+	// presumably, it has been replaced by a newer version.
+	return b.trim_suffix(" (deleted)");
 #elif defined(__OpenBSD__)
 	char resolved_path[MAXPATHLEN];
 
