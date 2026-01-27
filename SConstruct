@@ -504,8 +504,19 @@ try:  # Platform custom tools are optional
     custom_tools = detect.get_tools(env)
 except AttributeError:
     pass
+
+# Preserve CC/CXX before loading tools (they get overwritten by Tool("default"))
+_saved_cc = env.get("CC") if "CC" in ARGUMENTS else None
+_saved_cxx = env.get("CXX") if "CXX" in ARGUMENTS else None
+
 for tool in custom_tools:
     env.Tool(tool)
+
+# Restore CC/CXX if they were explicitly set
+if _saved_cc:
+    env["CC"] = _saved_cc
+if _saved_cxx:
+    env["CXX"] = _saved_cxx
 
 
 # Add default include paths.

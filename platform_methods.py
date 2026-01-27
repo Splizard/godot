@@ -172,6 +172,26 @@ def combine_libs_apple_embedded(target, source, env):
     )
 
 
+def combine_libs_unix(target, source, env):
+    """Combine multiple static libraries into one using ar MRI script (GNU/Linux)."""
+    lib_path = target[0].srcnode().abspath
+    # Build MRI script for ar
+    mri_lines = ["CREATE " + lib_path]
+    for lib in source:
+        mri_lines.append("ADDLIB " + lib.srcnode().abspath)
+    mri_lines.append("SAVE")
+    mri_lines.append("END")
+    mri_script = "\n".join(mri_lines)
+    # Write MRI script to temp file and execute
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".mri", delete=False) as f:
+        f.write(mri_script)
+        mri_path = f.name
+    env.Execute("$AR -M < " + mri_path)
+    os.remove(mri_path)
+
+
 def generate_bundle_apple_embedded(platform, framework_dir, framework_dir_sim, use_mkv, target, source, env):
     bin_dir = env.Dir("#bin").abspath
 
