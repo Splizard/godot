@@ -99,7 +99,7 @@ const Engine = (function () {
 					// This caused a regression with the Mono build (which uses an older emscripten version).
 					// Make sure to test that when refactoring.
 					return new Promise(function (resolve, reject) {
-						let next = function (response) {
+						promise.then(function (response) {
 							const cloned = new Response(response.clone().body, {
 								headers: [["content-type", "application/wasm"]],
 							});
@@ -117,27 +117,96 @@ const Engine = (function () {
 										return module["gdextension_" + name];
 									},
 								);
-								const paths = me.config.persistentPaths;
-								module["initFS"](paths).then(function (err) {
-									me.rtenv = module;
-									if (me.config.unloadAfterInit) {
-										Engine.unload();
-									}
-									resolve();
-								});
-							});
-						};
-						promise.then(function (response) {
-							const go = new Go();
-							WebAssembly.instantiateStreaming(
-								fetch("library.wasm"),
-								go.importObject,
-							).then(function (result) {
-								window.GDExtension = {
-									"res://library.gdextension": {},
+
+								// Load Go WASM with direct access to Godot's gd_* exports
+								const go = new Go();
+								go.importObject.gd = {};
+								// Cross-memory copy: Go WASM memory → Godot WASM memory (single JS call)
+								go.importObject.gd.bulk_copy = function(godot_dst, go_src, len) {
+									new Uint8Array(module.HEAPU8.buffer, godot_dst, len).set(
+										new Uint8Array(go._inst.exports.mem.buffer, go_src, len)
+									);
 								};
-								go.run(result.instance);
-								next(response);
+								WebAssembly.compileStreaming(fetch("library.wasm")).then(function (goModule) {
+									var goImportList = WebAssembly.Module.imports(goModule);
+									for (var i = 0; i < goImportList.length; i++) {
+										var imp = goImportList[i];
+										if (imp.module !== "gd") continue;
+										// Prefer raw WASM exports (EMSCRIPTEN_KEEPALIVE puts them on module directly)
+										var rawFn = module["_wasm_gd_" + imp.name];
+										if (rawFn) {
+											go.importObject.gd[imp.name] = rawFn;
+										} else if (module["gd_" + imp.name]) {
+											// Fallback to embind wrapper with >>> 0 unsigned fixup
+											go.importObject.gd[imp.name] = (function (fn) {
+												return function () {
+													var a = arguments;
+													switch (a.length) {
+													case 0: return fn();
+													case 1: return fn(a[0] >>> 0);
+													case 2: return fn(a[0] >>> 0, a[1] >>> 0);
+													case 3: return fn(a[0] >>> 0, a[1] >>> 0, a[2] >>> 0);
+													case 4: return fn(a[0] >>> 0, a[1] >>> 0, a[2] >>> 0, a[3] >>> 0);
+													case 5: return fn(a[0] >>> 0, a[1] >>> 0, a[2] >>> 0, a[3] >>> 0, a[4] >>> 0);
+													case 6: return fn(a[0] >>> 0, a[1] >>> 0, a[2] >>> 0, a[3] >>> 0, a[4] >>> 0, a[5] >>> 0);
+													}
+												};
+											})(module["gd_" + imp.name]);
+										}
+									}
+									// Ring flush JS fallback (used when Godot lacks the C++ raw export)
+									if (!go.importObject.gd.ring_flush) {
+										console.warn("ring_flush: using JS fallback (rebuild Godot for native path)");
+										var ptrcall = module["_wasm_gd_object_unsafe_call"] || module.gd_object_unsafe_call;
+										// Go WASM uses 8-byte uintptr: Object(0,8) Method(8,8) Shape(16,8) Args(24,256)
+										go.importObject.gd.ring_flush = function(ring_base, entry_stride, tail, head) {
+											var h32 = module.HEAPU32;
+											for (var i = tail >>> 0; i !== (head >>> 0); i = (i + 1) >>> 0) {
+												var base = (ring_base + ((i & 0xFF) * entry_stride)) >>> 0;
+												var b = base >>> 2;
+												ptrcall(h32[b], h32[b+2], 0, h32[b+5], h32[b+4], (base + 24) >>> 0);
+											}
+										};
+									}
+									WebAssembly.instantiate(goModule, go.importObject).then(function (instance) {
+										window.GDExtension = {
+											"res://library.gdextension": {},
+										};
+										go.run(instance);
+										// Wire all Go WASM exports as GO callbacks,
+										// bypassing js.FuncOf runtime overhead.
+										// Each wrapper calls resume() after the export
+										// to drive the Go goroutine scheduler.
+										var exports = go._inst.exports;
+										var resume = exports.resume;
+										for (var key in exports) {
+											if (key.startsWith("go_on_")) {
+												(function(fn) {
+													GO[key.substring(3)] = function() {
+														var r = fn.apply(null, arguments);
+														resume();
+														return r;
+													};
+												})(exports[key]);
+											}
+										}
+										// Hot-path callbacks use direct WASM export
+										// without resume() to avoid allocation overhead.
+										for (var key in exports) {
+											if (key.startsWith("go_on_") && key !== "go_on_engine_init" && key !== "go_on_engine_exit" && key !== "go_on_first_frame" && key !== "go_on_every_frame" && key !== "go_on_final_frame" && key !== "go_on_init") {
+												GO[key.substring(3)] = exports[key];
+											}
+										}
+										const paths = me.config.persistentPaths;
+										module["initFS"](paths).then(function (err) {
+											me.rtenv = module;
+											if (me.config.unloadAfterInit) {
+												Engine.unload();
+											}
+											resolve();
+										});
+									});
+								});
 							});
 						});
 					});

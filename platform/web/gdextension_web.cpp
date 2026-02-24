@@ -1,7 +1,7 @@
 // Here we export the GDExtension API to Javascript.
 
 #include "core/extension/gdextension_interface.cpp"
-#include "core/extension/gdextension_interface.h"
+#include "core/extension/gdextension_interface.gen.h"
 #include <emscripten/bind.h>
 #include <stdint.h>
 #include <string>

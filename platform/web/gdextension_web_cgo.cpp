@@ -59,7 +59,6 @@ typedef struct { uint64_t part[3]; } result_24;
 typedef struct { uint64_t part[4]; } result_32;
 typedef struct { uint64_t part[8]; } result_64;
 
-void cgo_initialize(void *ignore, GDExtensionInitializationLevel level) { go_on_engine_init(level); }
 void cgo_deinitialize(void *ignore, GDExtensionInitializationLevel level) { go_on_engine_exit(level); }
 void cgo_callable_call_func(void *callable_userdata, const GDExtensionConstVariantPtr *p_args, GDExtensionInt p_argument_count, GDExtensionVariantPtr r_return, GDExtensionCallError *r_error) {
     go_on_callable_call((uintptr_t)callable_userdata, r_return, p_argument_count, (void *)p_args, r_error);
@@ -263,7 +262,7 @@ GDExtensionInterfaceObjectSetScriptInstance gdextension_object_set_script_instan
 GDExtensionInterfaceClassdbConstructObject2 gdextension_classdb_construct_object2 = NULL;
 GDExtensionInterfaceClassdbGetMethodBind gdextension_classdb_get_method_bind = NULL;
 GDExtensionInterfaceClassdbGetClassTag gdextension_classdb_get_class_tag = NULL;
-GDExtensionInterfaceClassdbRegisterExtensionClass4 gdextension_classdb_register_extension_class4 = NULL;
+GDExtensionInterfaceClassdbRegisterExtensionClass5 gdextension_classdb_register_extension_class5 = NULL;
 GDExtensionInterfaceClassdbRegisterExtensionClassMethod gdextension_classdb_register_extension_class_method = NULL;
 GDExtensionInterfaceClassdbRegisterExtensionClassVirtualMethod gdextension_classdb_register_extension_class_virtual_method = NULL;
 GDExtensionInterfaceClassdbRegisterExtensionClassIntegerConstant gdextension_classdb_register_extension_class_integer_constant = NULL;
@@ -284,6 +283,36 @@ GDExtensionInterfaceImagePtr gdextension_image_ptr = NULL;
 GDExtensionInterfaceRegisterMainLoopCallbacks gdextension_register_main_loop_callbacks = NULL;
 GDExtensionInterfaceGetGodotVersion2 gdextension_get_godot_version2 = NULL;
 
+GDExtensionObjectPtr OS = NULL;
+GDExtensionMethodBindPtr OS_get_thread_caller_id = NULL;
+GDExtensionMethodBindPtr OS_get_main_thread_id = NULL;
+uint64_t main_thread_id = 0;
+
+uint64_t get_thread_caller_id() {
+    uint64_t thread_id = 0;
+    gdextension_object_method_bind_ptrcall(OS_get_thread_caller_id, OS, NULL, &thread_id);
+    return thread_id;
+}
+
+void cgo_initialize(void *ignore, GDExtensionInitializationLevel level) {
+    if (level == GDEXTENSION_INITIALIZATION_CORE) {
+        uintptr_t string_name_OS;
+        gdextension_string_name_new_with_latin1_chars(&string_name_OS, "OS", true);
+        OS = gdextension_global_get_singleton(&string_name_OS);
+        uintptr_t string_name_get_thread_caller_id;
+        gdextension_string_name_new_with_latin1_chars(&string_name_get_thread_caller_id, "get_thread_caller_id", true);
+        OS_get_thread_caller_id = gdextension_classdb_get_method_bind(&string_name_OS, &string_name_get_thread_caller_id, 3905245786);
+        uintptr_t string_name_get_main_thread_id;
+        gdextension_string_name_new_with_latin1_chars(&string_name_get_main_thread_id, "get_main_thread_id", true);
+        OS_get_main_thread_id = gdextension_classdb_get_method_bind(&string_name_OS, &string_name_get_main_thread_id, 3905245786);
+        gdextension_object_method_bind_ptrcall(OS_get_main_thread_id, OS, NULL, &main_thread_id);
+    }
+    go_on_engine_init(level);
+}
+
+bool gd_thread_is_main() {
+    return get_thread_caller_id() == main_thread_id;
+}
 
 EXPORT GDExtensionBool cgo_extension_init(GDExtensionInterfaceGetProcAddress p_get_proc_address, GDExtensionClassLibraryPtr p_library, GDExtensionInitialization *r_initialization) {
     LOAD_PROC_ADDRESS(mem_alloc, GDExtensionInterfaceMemAlloc);
@@ -428,7 +457,7 @@ EXPORT GDExtensionBool cgo_extension_init(GDExtensionInterfaceGetProcAddress p_g
 	LOAD_PROC_ADDRESS(classdb_construct_object2, GDExtensionInterfaceClassdbConstructObject2);
 	LOAD_PROC_ADDRESS(classdb_get_method_bind, GDExtensionInterfaceClassdbGetMethodBind);
 	LOAD_PROC_ADDRESS(classdb_get_class_tag, GDExtensionInterfaceClassdbGetClassTag);
-	LOAD_PROC_ADDRESS(classdb_register_extension_class4, GDExtensionInterfaceClassdbRegisterExtensionClass4);
+	LOAD_PROC_ADDRESS(classdb_register_extension_class5, GDExtensionInterfaceClassdbRegisterExtensionClass5);
 	LOAD_PROC_ADDRESS(classdb_register_extension_class_method, GDExtensionInterfaceClassdbRegisterExtensionClassMethod);
 	LOAD_PROC_ADDRESS(classdb_register_extension_class_virtual_method, GDExtensionInterfaceClassdbRegisterExtensionClassVirtualMethod);
 	LOAD_PROC_ADDRESS(classdb_register_extension_class_integer_constant, GDExtensionInterfaceClassdbRegisterExtensionClassIntegerConstant);
@@ -454,6 +483,12 @@ EXPORT GDExtensionBool cgo_extension_init(GDExtensionInterfaceGetProcAddress p_g
     r_initialization->deinitialize = cgo_deinitialize;
 
     gdextension_get_godot_version2(&cgo_cached_godot_version);
+    GDExtensionMainLoopCallbacks callbacks = {
+    	.startup_func = go_on_first_frame,
+    	.shutdown_func = go_on_final_frame,
+    	.frame_func = go_on_every_frame,
+    };
+    gdextension_register_main_loop_callbacks(p_library, &callbacks);
 
     for (int i = 1; i < GDEXTENSION_VARIANT_TYPE_VARIANT_MAX; i++) {
     	GDExtensionVariantType v = (GDExtensionVariantType)i;
@@ -466,9 +501,6 @@ EXPORT GDExtensionBool cgo_extension_init(GDExtensionInterfaceGetProcAddress p_g
         variant_ptr_keyed_setters[i] = gdextension_variant_get_ptr_keyed_setter(v);
         variant_ptr_keyed_getters[i] = gdextension_variant_get_ptr_keyed_getter(v);
     }
-    #ifdef __EMSCRIPTEN__
-    	Go = emscripten::val::global("GO");
-    #endif
     return true;
 }
 
@@ -783,6 +815,10 @@ GDExtensionObjectPtr cgo_class_create_instance_func(void *user_data, GDExtension
     return (GDExtensionObjectPtr)go_on_extension_class_create((uintptr_t)user_data, notify_postinitialize);
 }
 
+void cgo_class_notification_func(GDExtensionClassInstancePtr p_instance, int32_t p_what, GDExtensionBool p_reversed) {
+    go_on_extension_instance_notification((uintptr_t)p_instance, p_what, p_reversed);
+}
+
 void *cgo_class_get_virtual_call_data_func(void *user_data, GDExtensionConstStringNamePtr name, uint32_t hash) {
     return (void*)go_on_extension_class_method((uintptr_t)user_data, *(uintptr_t*)name, hash);
 }
@@ -796,7 +832,7 @@ void cgo_class_free_instance_func(void *p_class_userdata, GDExtensionClassInstan
 }
 
 void gd_classdb_register(uintptr_t class_name, uintptr_t parent, uintptr_t id, bool is_virtual, bool abstract, bool exposed, bool runtime, uintptr_t icon_path) {
-    GDExtensionClassCreationInfo4 info = {
+    GDExtensionClassCreationInfo5 info = {
         .is_virtual = is_virtual,
         .is_abstract = abstract,
         .is_exposed = exposed,
@@ -809,7 +845,7 @@ void gd_classdb_register(uintptr_t class_name, uintptr_t parent, uintptr_t id, b
         .property_can_revert_func = cgo_class_property_can_revert_func,
         .property_get_revert_func = cgo_class_property_get_revert_func,
         .validate_property_func = cgo_class_validate_property_func,
-        .notification_func = (GDExtensionClassNotification2)go_on_extension_instance_notification,
+        .notification_func = cgo_class_notification_func,
         .to_string_func = cgo_class_to_string_func,
         //.reference_func = (GDExtensionClassReference)cgo_class_reference_func, // FIXME JavaScript error: null function or function signature mismatch
         //.unreference_func = (GDExtensionClassUnreference)cgo_class_unreference_func, // FIXME JavaScript error: null function or function signature mismatch
@@ -819,7 +855,7 @@ void gd_classdb_register(uintptr_t class_name, uintptr_t parent, uintptr_t id, b
         .call_virtual_with_data_func = cgo_class_call_virtual_with_data_func,
         .class_userdata = (void *)id,
     };
-    gdextension_classdb_register_extension_class4(cgo_library, (GDExtensionConstStringNamePtr)&class_name, (GDExtensionConstStringNamePtr)&parent, &info);
+    gdextension_classdb_register_extension_class5(cgo_library, (GDExtensionConstStringNamePtr)&class_name, (GDExtensionConstStringNamePtr)&parent, &info);
 };
 
 void gd_classdb_register_methods(uintptr_t class_name, uintptr_t methods) {
@@ -1179,7 +1215,7 @@ uintptr_t gd_object_script_make(uintptr_t instance) {
         .has_method_func = cgo_class_has_method_func,
         .get_method_argument_count_func = cgo_class_get_method_argument_count_func,
         .call_func = (GDExtensionScriptInstanceCall)cgo_method_call_func,
-        .notification_func = (GDExtensionClassNotification2)go_on_extension_instance_notification,
+        .notification_func = (GDExtensionClassNotification2)cgo_class_notification_func,
         .to_string_func = cgo_class_to_string_func,
         //.refcount_incremented_func = cgo_class_reference_func,
         //.refcount_decremented_func = cgo_class_unreference_func,
@@ -1719,6 +1755,77 @@ uintptr_t gd_version_string() {
 };
 
 #ifdef __EMSCRIPTEN__
+
+// Raw WASM exports for direct WASM-to-WASM calls (bypassing embind JS trampolines).
+// These use native types (real uint64_t instead of split uint32 pairs).
+#include <emscripten/emscripten.h>
+extern "C" {
+    EMSCRIPTEN_KEEPALIVE uint32_t wasm_gd_memory_malloc(uint32_t size) { return (uint32_t)gdextension_mem_alloc(size); }
+    EMSCRIPTEN_KEEPALIVE uint32_t wasm_gd_memory_resize(uint32_t addr, uint32_t size) { return (uint32_t)gdextension_mem_realloc((void *)(uintptr_t)addr, size); }
+    EMSCRIPTEN_KEEPALIVE void wasm_gd_memory_clear(uint32_t addr, uint32_t size) { if (size <= 0) return; memset((void *)(uintptr_t)addr, 0, size); }
+    EMSCRIPTEN_KEEPALIVE void wasm_gd_memory_free(uint32_t addr) { gdextension_mem_free((void *)(uintptr_t)addr); }
+    EMSCRIPTEN_KEEPALIVE uint32_t wasm_gd_memory_load_byte(uint32_t addr) { return *(uint8_t *)(uintptr_t)addr; }
+    EMSCRIPTEN_KEEPALIVE uint32_t wasm_gd_memory_load_u16(uint32_t addr) { return *(uint16_t *)(uintptr_t)addr; }
+    EMSCRIPTEN_KEEPALIVE uint32_t wasm_gd_memory_load_u32(uint32_t addr) { return *(uint32_t *)(uintptr_t)addr; }
+    EMSCRIPTEN_KEEPALIVE void wasm_gd_memory_edit_byte(uint32_t addr, uint32_t b) { *(uint8_t *)(uintptr_t)addr = (uint8_t)b; }
+    EMSCRIPTEN_KEEPALIVE void wasm_gd_memory_edit_u16(uint32_t addr, uint32_t b) { *(uint16_t *)(uintptr_t)addr = (uint16_t)b; }
+    EMSCRIPTEN_KEEPALIVE void wasm_gd_memory_edit_u32(uint32_t addr, uint32_t b) { *(uint32_t *)(uintptr_t)addr = b; }
+    EMSCRIPTEN_KEEPALIVE void wasm_gd_memory_edit_u64(uint32_t addr, uint32_t b_hi, uint32_t b_lo) {
+        *(uint64_t *)(uintptr_t)addr = ((uint64_t)b_hi << 32) | (uint64_t)b_lo;
+    }
+    EMSCRIPTEN_KEEPALIVE void wasm_gd_memory_edit_128(uint32_t addr, uint32_t a_hi, uint32_t a_lo, uint32_t b_hi, uint32_t b_lo) {
+        uint64_t *ptr = (uint64_t *)(uintptr_t)addr;
+        ptr[0] = ((uint64_t)a_hi << 32) | (uint64_t)a_lo;
+        ptr[1] = ((uint64_t)b_hi << 32) | (uint64_t)b_lo;
+    }
+    EMSCRIPTEN_KEEPALIVE void wasm_gd_memory_edit_256(uint32_t addr,
+        uint32_t a_hi, uint32_t a_lo, uint32_t b_hi, uint32_t b_lo,
+        uint32_t c_hi, uint32_t c_lo, uint32_t d_hi, uint32_t d_lo) {
+        uint64_t *ptr = (uint64_t *)(uintptr_t)addr;
+        ptr[0] = ((uint64_t)a_hi << 32) | (uint64_t)a_lo;
+        ptr[1] = ((uint64_t)b_hi << 32) | (uint64_t)b_lo;
+        ptr[2] = ((uint64_t)c_hi << 32) | (uint64_t)c_lo;
+        ptr[3] = ((uint64_t)d_hi << 32) | (uint64_t)d_lo;
+    }
+    EMSCRIPTEN_KEEPALIVE void wasm_gd_memory_edit_512(uint32_t addr,
+        uint32_t a_hi, uint32_t a_lo, uint32_t b_hi, uint32_t b_lo,
+        uint32_t c_hi, uint32_t c_lo, uint32_t d_hi, uint32_t d_lo,
+        uint32_t e_hi, uint32_t e_lo, uint32_t f_hi, uint32_t f_lo,
+        uint32_t g_hi, uint32_t g_lo, uint32_t h_hi, uint32_t h_lo) {
+        uint64_t *ptr = (uint64_t *)(uintptr_t)addr;
+        ptr[0] = ((uint64_t)a_hi << 32) | (uint64_t)a_lo;
+        ptr[1] = ((uint64_t)b_hi << 32) | (uint64_t)b_lo;
+        ptr[2] = ((uint64_t)c_hi << 32) | (uint64_t)c_lo;
+        ptr[3] = ((uint64_t)d_hi << 32) | (uint64_t)d_lo;
+        ptr[4] = ((uint64_t)e_hi << 32) | (uint64_t)e_lo;
+        ptr[5] = ((uint64_t)f_hi << 32) | (uint64_t)f_lo;
+        ptr[6] = ((uint64_t)g_hi << 32) | (uint64_t)g_lo;
+        ptr[7] = ((uint64_t)h_hi << 32) | (uint64_t)h_lo;
+    }
+    EMSCRIPTEN_KEEPALIVE void wasm_gd_object_unsafe_call(uint32_t obj, uint32_t method, uint32_t result, uint32_t shape_hi, uint32_t shape_lo, uint32_t args) {
+        uint64_t shape = ((uint64_t)shape_hi << 32) | (uint64_t)shape_lo;
+        void *points[16]; prepare_callframe(1, &points[0], shape, args);
+        gdextension_object_method_bind_ptrcall((GDExtensionMethodBindPtr)(uintptr_t)method, (GDExtensionObjectPtr)(uintptr_t)obj, (const GDExtensionConstTypePtr*)&points[0], (GDExtensionTypePtr)(uintptr_t)result);
+    }
+    // Go WASM uses 8-byte uintptr: Object(0,8) Method(8,8) Shape(16,8) Args(24,256)
+    EMSCRIPTEN_KEEPALIVE void wasm_gd_ring_flush(uint32_t ring_base, uint32_t entry_stride, uint32_t tail, uint32_t head) {
+        for (uint32_t i = tail; i != head; i++) {
+            uint8_t *entry = (uint8_t *)(uintptr_t)(ring_base + (i & 0xFF) * entry_stride);
+            uint32_t object = *(uint32_t *)(entry + 0);
+            uint32_t method = *(uint32_t *)(entry + 8);
+            uint64_t shape = *(uint64_t *)(entry + 16);
+            uint32_t args = (uint32_t)(uintptr_t)(entry + 24);
+            void *points[16];
+            prepare_callframe(1, &points[0], shape, args);
+            gdextension_object_method_bind_ptrcall(
+                (GDExtensionMethodBindPtr)(uintptr_t)method,
+                (GDExtensionObjectPtr)(uintptr_t)object,
+                (const GDExtensionConstTypePtr*)&points[0],
+                NULL);
+        }
+    }
+}
+
 using namespace emscripten;
 EMSCRIPTEN_BINDINGS(my_module) {
 	function("gd_builtin_name", &gd_builtin_name, allow_raw_pointers());
@@ -1897,5 +2004,6 @@ EMSCRIPTEN_BINDINGS(my_module) {
 	function("gd_version_hash", &gd_version_hash, allow_raw_pointers());
 	function("gd_version_timestamp", &gd_version_timestamp, allow_raw_pointers());
 	function("gd_version_string", &gd_version_string, allow_raw_pointers());
+	function("gd_thread_is_main", &gd_thread_is_main, allow_raw_pointers());
 }
 #endif // __EMSCRIPTEN__
