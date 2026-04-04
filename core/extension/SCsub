@@ -22,3 +22,4 @@ env.CommandNoCache(
 env_extension = env.Clone()
 
 env_extension.add_source_files(env.core_sources, "*.cpp")
+env_extension.add_source_files(env.core_sources, "*.c")

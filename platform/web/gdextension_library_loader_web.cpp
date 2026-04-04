@@ -61,7 +61,7 @@ Error GDExtensionJavascriptLoader::open_library(const String &p_path) {
 }
 
 Error GDExtensionJavascriptLoader::initialize(GDExtensionInterfaceGetProcAddress p_get_proc_address, const Ref<GDExtension> &p_extension, GDExtensionInitialization *r_initialization) {
-	GDExtensionBool ok = cgo_extension_init(p_get_proc_address, (GDExtensionClassLibraryPtr)p_extension.ptr(), r_initialization);
+	GDExtensionBool ok = gd_extension_init(p_get_proc_address, (GDExtensionClassLibraryPtr)p_extension.ptr(), r_initialization);
 	if (!ok) {
 		return ERR_CANT_OPEN;
 	}
