@@ -33,7 +33,6 @@
 #include "gdscript_cache.h"
 #include "gdscript_parser.h"
 
-#include "core/object/object.h"
 #include "core/object/ref_counted.h"
 
 class GDScriptAnalyzer {
@@ -81,7 +80,7 @@ class GDScriptAnalyzer {
 	void resolve_function_signature(GDScriptParser::FunctionNode *p_function, const GDScriptParser::Node *p_source = nullptr, bool p_is_lambda = false);
 	void resolve_function_body(GDScriptParser::FunctionNode *p_function, bool p_is_lambda = false);
 	void resolve_node(GDScriptParser::Node *p_node, bool p_is_root = true);
-	void resolve_suite(GDScriptParser::SuiteNode *p_suite);
+	void resolve_suite(GDScriptParser::SuiteNode *p_suite, bool p_is_root = true);
 	void resolve_assignable(GDScriptParser::AssignableNode *p_assignable, const char *p_kind);
 	void resolve_variable(GDScriptParser::VariableNode *p_variable, bool p_is_local);
 	void resolve_constant(GDScriptParser::ConstantNode *p_constant, bool p_is_local);
@@ -135,6 +134,7 @@ class GDScriptAnalyzer {
 	Dictionary make_dictionary_from_element_datatype(const GDScriptParser::DataType &p_key_element_datatype, const GDScriptParser::DataType &p_value_element_datatype, const GDScriptParser::Node *p_source_node = nullptr);
 	GDScriptParser::DataType type_from_script(const Ref<Script> &p_script, const GDScriptParser::Node *p_source, bool p_is_meta_type);
 	GDScriptParser::DataType type_from_variant(const Variant &p_value, const GDScriptParser::Node *p_source);
+	GDScriptParser::DataType type_from_property_hint_string(const String &p_type_name) const;
 	GDScriptParser::DataType type_from_property(const PropertyInfo &p_property, bool p_is_arg = false, bool p_is_readonly = false) const;
 	GDScriptParser::DataType make_global_class_meta_type(const StringName &p_class_name, const GDScriptParser::Node *p_source);
 	bool get_function_signature(GDScriptParser::Node *p_source, bool p_is_constructor, GDScriptParser::DataType base_type, const StringName &p_function, GDScriptParser::DataType &r_return_type, List<GDScriptParser::DataType> &r_par_types, int &r_default_arg_count, BitField<MethodFlags> &r_method_flags, StringName *r_native_class = nullptr);
@@ -158,9 +158,11 @@ class GDScriptAnalyzer {
 	Ref<GDScriptParserRef> find_cached_external_parser_for_class(const GDScriptParser::ClassNode *p_class, const Ref<GDScriptParserRef> &p_dependant_parser);
 	Ref<GDScriptParserRef> find_cached_external_parser_for_class(const GDScriptParser::ClassNode *p_class, GDScriptParser *p_dependant_parser);
 	Ref<GDScript> get_depended_shallow_script(const String &p_path, Error &r_error);
+
 #ifdef DEBUG_ENABLED
 	void is_shadowing(GDScriptParser::IdentifierNode *p_identifier, const String &p_context, const bool p_in_local_scope);
-#endif
+	void warn_confusable_temporary_modification(GDScriptParser::ExpressionNode *p_expression);
+#endif // DEBUG_ENABLED
 
 public:
 	Error resolve_inheritance();
