@@ -34,6 +34,22 @@
 #include "core/extension/libgodot.h"
 #include "main/main.h"
 
+// For export templates, reserve a "pck" section; the exporter patches it to
+// enclose the PCK appended to the executable, and the runtime
+// (OS_LinuxBSD::get_executable_path / PackedData) reads it back. The regular
+// entry point (godot_linuxbsd.cpp) does this, but libgodot-linked binaries use
+// this translation unit instead, so without it embedded-PCK export fails with
+// "Executable \"pck\" section not found."
+#if !defined(TOOLS_ENABLED) && defined(__GNUC__)
+static const char pck_section_dummy[8] __attribute__((section("pck"), used)) = { 0 };
+
+// Dummy function to prevent LTO from discarding the "pck" section.
+extern "C" const char *libgodot_pck_section_dummy_call() __attribute__((used));
+extern "C" const char *libgodot_pck_section_dummy_call() {
+	return &pck_section_dummy[0];
+}
+#endif
+
 static OS_LinuxBSD *os = nullptr;
 
 static GodotInstance *instance = nullptr;
