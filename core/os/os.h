@@ -252,6 +252,12 @@ public:
 	// NOTE: MainLoop is forward-declared in OS and should be included to use this.
 	virtual MainLoop *get_main_loop() const = 0;
 
+	// Platforms that pump joypad events from their run() loop should also
+	// expose the pump here so embedded instances (GodotInstance::iteration)
+	// can drive it. Default is a no-op for platforms that pump joypads from
+	// DisplayServer::process_events() or a dedicated thread.
+	virtual void process_joypad_events() {}
+
 	virtual void yield();
 
 	struct DateTime {

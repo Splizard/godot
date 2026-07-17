@@ -127,6 +127,8 @@ public:
 
 	void run();
 
+	virtual void process_joypad_events() override;
+
 	virtual void disable_crash_handler() override;
 	virtual bool is_disable_crash_handler() const override;
 

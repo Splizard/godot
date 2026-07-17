@@ -80,6 +80,7 @@ bool GodotInstance::is_started() {
 
 bool GodotInstance::iteration() {
 	DisplayServer::get_singleton()->process_events();
+	OS::get_singleton()->process_joypad_events();
 	return Main::iteration();
 }
 
