@@ -62,7 +62,7 @@ static void engine_exit(void *ignore, GDExtensionInitializationLevel level) {
     gd_on_engine_exit(level);
 }
 static void callable_call(void *callable_userdata, const GDExtensionConstVariantPtr *p_args, GDExtensionInt p_argument_count, GDExtensionVariantPtr r_return, GDExtensionCallError *r_error) {
-    gd_on_callable_call((uintptr_t)callable_userdata, r_return, p_argument_count, (void *)p_args, r_error);
+    gd_on_callable_call((uintptr_t)callable_userdata, r_return, p_argument_count, (void *)p_args, (CallError*)r_error);
 }
 static GDExtensionBool callable_validation(void *callable_userdata) {
     return gd_on_callable_validation((uintptr_t)callable_userdata);
@@ -81,7 +81,7 @@ static GDExtensionBool callable_less_than(void *callable_userdata, void *other_u
 }
 static void callable_stringify(void *callable_userdata, GDExtensionBool *r_is_valid, GDExtensionStringPtr r_out) {
     uint64_t invalid = 0;
-    uintptr_t s = gd_on_callable_stringify((uintptr_t)callable_userdata, &invalid);
+    uintptr_t s = gd_on_callable_stringify((uintptr_t)callable_userdata, (CallError*)&invalid);
     *r_is_valid = !(GDExtensionBool)invalid;
     if (invalid) {
         *((uintptr_t*)r_out) = 0;
@@ -91,13 +91,13 @@ static void callable_stringify(void *callable_userdata, GDExtensionBool *r_is_va
 }
 static GDExtensionInt callable_get_argument_count(void *callable_userdata, GDExtensionBool *r_is_valid) {
     uint64_t invalid = 0;
-    int64_t count = gd_on_callable_get_argument_count((uintptr_t)callable_userdata, &invalid);
+    int64_t count = gd_on_callable_get_argument_count((uintptr_t)callable_userdata, (CallError*)&invalid);
     *r_is_valid = !(GDExtensionBool)invalid;
     if (invalid) return -1;
     return (GDExtensionInt)count;
 }
 static void extension_instance_dynamic_call(void *method_userdata, GDExtensionClassInstancePtr p_instance, const GDExtensionConstVariantPtr *p_args, GDExtensionInt p_argument_count, GDExtensionVariantPtr r_return, GDExtensionCallError *r_error) {
-    gd_on_extension_instance_dynamic_call((uintptr_t)p_instance, (uintptr_t)method_userdata, r_return, p_argument_count, (void *)p_args, r_error);
+    gd_on_extension_instance_dynamic_call((uintptr_t)p_instance, (uintptr_t)method_userdata, r_return, p_argument_count, (void *)p_args, (CallError*)r_error);
 }
 static void extension_instance_checked_call(void *method_userdata, GDExtensionClassInstancePtr p_instance, const GDExtensionConstTypePtr *p_args, GDExtensionTypePtr r_ret) {
     gd_on_extension_instance_checked_call((uintptr_t)p_instance, (uintptr_t)method_userdata, r_ret, (void *)p_args);
@@ -265,10 +265,10 @@ GDExtensionInterfacePlaceHolderScriptInstanceCreate gdextension_placeholder_scri
 GDExtensionInterfacePlaceHolderScriptInstanceUpdate gdextension_placeholder_script_instance_update = NULL;
 GDExtensionInterfaceObjectGetScriptInstance gdextension_object_get_script_instance = NULL;
 GDExtensionInterfaceObjectSetScriptInstance gdextension_object_set_script_instance = NULL;
-GDExtensionInterfaceClassdbConstructObject2 gdextension_classdb_construct_object2 = NULL;
+GDExtensionInterfaceClassdbConstructObject3 gdextension_classdb_construct_object3 = NULL;
 GDExtensionInterfaceClassdbGetMethodBind gdextension_classdb_get_method_bind = NULL;
 GDExtensionInterfaceClassdbGetClassTag gdextension_classdb_get_class_tag = NULL;
-GDExtensionInterfaceClassdbRegisterExtensionClass5 gdextension_classdb_register_extension_class5 = NULL;
+GDExtensionInterfaceClassdbRegisterExtensionClass6 gdextension_classdb_register_extension_class6 = NULL;
 GDExtensionInterfaceClassdbRegisterExtensionClassMethod gdextension_classdb_register_extension_class_method = NULL;
 GDExtensionInterfaceClassdbRegisterExtensionClassVirtualMethod gdextension_classdb_register_extension_class_virtual_method = NULL;
 GDExtensionInterfaceClassdbRegisterExtensionClassIntegerConstant gdextension_classdb_register_extension_class_integer_constant = NULL;
@@ -456,10 +456,10 @@ EXPORT GDExtensionBool gd_extension_init(GDExtensionInterfaceGetProcAddress p_ge
 	LOAD_PROC_ADDRESS(placeholder_script_instance_update, GDExtensionInterfacePlaceHolderScriptInstanceUpdate);
 	LOAD_PROC_ADDRESS(object_get_script_instance, GDExtensionInterfaceObjectGetScriptInstance);
 	LOAD_PROC_ADDRESS(object_set_script_instance, GDExtensionInterfaceObjectSetScriptInstance);
-	LOAD_PROC_ADDRESS(classdb_construct_object2, GDExtensionInterfaceClassdbConstructObject2);
+	LOAD_PROC_ADDRESS(classdb_construct_object3, GDExtensionInterfaceClassdbConstructObject3);
 	LOAD_PROC_ADDRESS(classdb_get_method_bind, GDExtensionInterfaceClassdbGetMethodBind);
 	LOAD_PROC_ADDRESS(classdb_get_class_tag, GDExtensionInterfaceClassdbGetClassTag);
-	LOAD_PROC_ADDRESS(classdb_register_extension_class5, GDExtensionInterfaceClassdbRegisterExtensionClass5);
+	LOAD_PROC_ADDRESS(classdb_register_extension_class6, GDExtensionInterfaceClassdbRegisterExtensionClass6);
 	LOAD_PROC_ADDRESS(classdb_register_extension_class_method, GDExtensionInterfaceClassdbRegisterExtensionClassMethod);
 	LOAD_PROC_ADDRESS(classdb_register_extension_class_virtual_method, GDExtensionInterfaceClassdbRegisterExtensionClassVirtualMethod);
 	LOAD_PROC_ADDRESS(classdb_register_extension_class_integer_constant, GDExtensionInterfaceClassdbRegisterExtensionClassIntegerConstant);
@@ -512,22 +512,6 @@ void prepare_variants(void **frame, uint32_t argc, ANY args) {
 }
 // Helper macro to align a value to the next multiple of 'align'
 #define ALIGN_UP(value, align) (((value) + ((align) - 1)) & ~((align) - 1))
-typedef enum {
-    ShapeEmpty,
-    ShapeBytes1,
-	ShapeBytes2,
-	ShapeBytes4,
-	ShapeBytes8,
-	ShapeBytes4x2,
-	ShapeBytes4x3,
-	ShapeBytes8x2,
-	ShapeBytes4x4,
-	ShapeBytes8x3,
-	ShapeBytes4x6,
-	ShapeBytes4x9,
-	ShapeBytes4x12,
-	ShapeBytes4x16
-} Shape;
 uint8_t prepare_callframe(int skip, void **frame, uint64_t shape, ANY args) {
     uint8_t *head = (uint8_t *)args;
     ptrdiff_t offset = 0; // Track current offset in the frame
@@ -789,7 +773,7 @@ static void extension_instance_free(void *p_class_userdata, GDExtensionClassInst
     gd_on_extension_instance_free((uintptr_t)p_instance);
 }
 void gd_classdb_register(uintptr_t class_name, uintptr_t parent, uintptr_t id, bool is_virtual, bool abstract, bool exposed, bool runtime, uintptr_t icon_path) {
-    GDExtensionClassCreationInfo5 info = {
+    GDExtensionClassCreationInfo6 info = {
         .is_virtual = is_virtual,
         .is_abstract = abstract,
         .is_exposed = exposed,
@@ -812,7 +796,7 @@ void gd_classdb_register(uintptr_t class_name, uintptr_t parent, uintptr_t id, b
         .call_virtual_with_data_func = extension_instance_called,
         .class_userdata = (void *)id,
     };
-    gdextension_classdb_register_extension_class5(gd_library, (GDExtensionConstStringNamePtr)&class_name, (GDExtensionConstStringNamePtr)&parent, &info);
+    gdextension_classdb_register_extension_class6(gd_library, (GDExtensionConstStringNamePtr)&class_name, (GDExtensionConstStringNamePtr)&parent, &info);
 };
 void gd_classdb_register_methods(uintptr_t class_name, uintptr_t methods) {
     method_list *list = (method_list *)methods;
@@ -858,6 +842,7 @@ void gd_packed_dictionary_access(uintptr_t dict, UINT64(k1), UINT64(k2), UINT64(
     uint64_t key[3] = {UINT64_FROM(k1), UINT64_FROM(k2), UINT64_FROM(k3)};
     uint64_t *value = (uint64_t*)gdextension_dictionary_operator_index_const((GDExtensionTypePtr)&dict, &key[0]);
     if (!value) return;
+    // Shallow header copy — callers must Variants.Copy before Free (see gd_array_get).
     uint64_t * result = (uint64_t*)args;
     result[0] = value[0];
     result[1] = value[1];
@@ -993,7 +978,7 @@ uint32_t gd_memory_load_u32(uintptr_t addr) {
     return *(uint32_t *)addr;
 };
 uintptr_t gd_object_make(uintptr_t name) {
-    return (uintptr_t)gdextension_classdb_construct_object2((GDExtensionConstStringNamePtr)&name);
+    return (uintptr_t)gdextension_classdb_construct_object3((GDExtensionConstStringNamePtr)&name);
 };
 void gd_object_call(uintptr_t obj, uintptr_t fn, ANY result, INT argc, ANY args, ANY err) {
     void *points[16]; prepare_variants(&points[0], argc, args);
@@ -1066,6 +1051,14 @@ void gd_ring_flush(void *entries, uint32_t tail, uint32_t head, uint32_t *crash_
         *crash_index = i & 0xFF;
         void *points[16];
         prepare_callframe(1, &points[0], e->shape, (ANY)e->args);
+        // The result slot must look like a default-constructed value before
+        // ptrcall writes to it: Godot's PtrToArg<T>::encode assigns through
+        // T::operator=, which unrefs whatever the destination bytes appear
+        // to point at. Entries are reused every lap of the ring, so stale
+        // result bytes from an earlier call would be unref'd here — freeing
+        // a value that a previous caller copied out and still owns (the
+        // direct call paths zero their local result buffer the same way).
+        __builtin_memset(e->result, 0, sizeof e->result);
         gdextension_object_method_bind_ptrcall(
             (GDExtensionMethodBindPtr)e->method,
             (GDExtensionObjectPtr)e->object,
@@ -1180,7 +1173,8 @@ void gd_object_script_placeholder_update(uintptr_t p_placeholder, uintptr_t p_pr
 };
 uintptr_t gd_packed_byte_array_unsafe(UINT a1, UINT a2) {
     uintptr_t packed_array[2] = {a1, a2};
-    return (uintptr_t)gdextension_packed_byte_array_operator_index(&packed_array[0], 0);
+    // Const index: writable operator_index can COW and invalidate bulk reads.
+    return (uintptr_t)gdextension_packed_byte_array_operator_index_const(&packed_array[0], 0);
 };
 uint8_t gd_packed_byte_array_access(UINT a1, UINT a2, INT i) {
     uintptr_t packed_array[2] = {a1, a2};
@@ -1242,6 +1236,10 @@ void gd_array_set(uintptr_t a, INT i, UINT64(v1), UINT64(v2), UINT64(v3)) {
     variant[2] = UINT64_FROM(v3);
 };
 void gd_array_get(uintptr_t a, INT i, ANY result) {
+    // operator_index_const returns a pointer into the array's storage.
+    // Callers (Array.Index) must Variants.Copy before taking ownership.
+    // TODO: switch to gdextension_variant_new_copy here and drop the Go-side
+    // Copy once all export templates ship that change together.
     uint64_t *packed = (uint64_t*)gdextension_array_operator_index_const(&a, i);
     memcpy((uint64_t*)result, packed, sizeof(uint64_t)*3);
 };
