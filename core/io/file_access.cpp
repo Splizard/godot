@@ -35,6 +35,7 @@
 #include "core/crypto/crypto_core.h"
 #include "core/io/file_access_compressed.h"
 #include "core/io/file_access_encrypted.h"
+#include "core/io/file_access_http.h"
 #include "core/io/file_access_pack.h"
 #include "core/io/marshalls.h"
 #include "core/io/resource_uid.h"
@@ -158,6 +159,22 @@ Error FileAccess::reopen(const String &p_path, int p_mode_flags) {
 }
 
 Ref<FileAccess> FileAccess::open(const String &p_path, int p_mode_flags, Error *r_error) {
+	// Remote pack streaming: http(s):// reads are served by FileAccessHTTP
+	// (Range requests). This makes the stock PCK machinery stream a remote
+	// pack — directory parse + per-file reads all go through here.
+	if (!(p_mode_flags & WRITE) && FileAccessHTTP::is_http_path(p_path)) {
+		Ref<FileAccessHTTP> http;
+		http.instantiate();
+		Error err = http->open_internal(p_path, p_mode_flags & ~SKIP_PACK);
+		if (r_error) {
+			*r_error = err;
+		}
+		if (err != OK) {
+			return Ref<FileAccess>();
+		}
+		return http;
+	}
+
 	//try packed data first
 
 	Ref<FileAccess> ret;
