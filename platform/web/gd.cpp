@@ -1,5 +1,7 @@
 #ifdef __EMSCRIPTEN__
-    #include "core/extension/gdextension_interface.h"
+    // The generated interface header is the authoritative one in the engine
+    // tree (the plain gdextension_interface.h there is a stale snapshot).
+    #include "core/extension/gdextension_interface.gen.h"
     #include <emscripten/bind.h>
     #include <bit>
 #else
@@ -9,6 +11,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -169,7 +172,7 @@ GDExtensionInterfaceVariantCanConvert gdextension_variant_can_convert = NULL;
 GDExtensionInterfaceVariantCanConvertStrict gdextension_variant_can_convert_strict = NULL;
 GDExtensionInterfaceGetVariantFromTypeConstructor gdextension_get_variant_from_type_constructor = NULL;
 GDExtensionInterfaceGetVariantToTypeConstructor gdextension_get_variant_to_type_constructor = NULL;
-GDExtensionInterfaceGetVariantGetInternalPtrFunc gdextension_variant_get_ptr_internal_getter = NULL;
+GDExtensionInterfaceVariantGetPtrInternalGetter gdextension_variant_get_ptr_internal_getter = NULL;
 GDExtensionInterfaceVariantGetPtrOperatorEvaluator gdextension_variant_get_ptr_operator_evaluator = NULL;
 GDExtensionInterfaceVariantGetPtrBuiltinMethod gdextension_variant_get_ptr_builtin_method = NULL;
 GDExtensionInterfaceVariantGetPtrConstructor gdextension_variant_get_ptr_constructor = NULL;
@@ -257,12 +260,12 @@ GDExtensionInterfaceObjectGetInstanceId gdextension_object_get_instance_id = NUL
 GDExtensionInterfaceObjectHasScriptMethod gdextension_object_has_script_method = NULL;
 GDExtensionInterfaceObjectCallScriptMethod gdextension_object_call_script_method = NULL;
 GDExtensionInterfaceCallableCustomCreate2 gdextension_callable_custom_create2 = NULL;
-GDExtensionInterfaceCallableCustomGetUserData gdextension_callable_custom_get_userdata = NULL;
+GDExtensionInterfaceCallableCustomGetUserdata gdextension_callable_custom_get_userdata = NULL;
 GDExtensionInterfaceRefGetObject gdextension_ref_get_object = NULL;
 GDExtensionInterfaceRefSetObject gdextension_ref_set_object = NULL;
 GDExtensionInterfaceScriptInstanceCreate3 gdextension_script_instance_create3 = NULL;
-GDExtensionInterfacePlaceHolderScriptInstanceCreate gdextension_placeholder_script_instance_create = NULL;
-GDExtensionInterfacePlaceHolderScriptInstanceUpdate gdextension_placeholder_script_instance_update = NULL;
+GDExtensionInterfacePlaceholderScriptInstanceCreate gdextension_placeholder_script_instance_create = NULL;
+GDExtensionInterfacePlaceholderScriptInstanceUpdate gdextension_placeholder_script_instance_update = NULL;
 GDExtensionInterfaceObjectGetScriptInstance gdextension_object_get_script_instance = NULL;
 GDExtensionInterfaceObjectSetScriptInstance gdextension_object_set_script_instance = NULL;
 GDExtensionInterfaceClassdbConstructObject3 gdextension_classdb_construct_object3 = NULL;
@@ -282,8 +285,8 @@ GDExtensionInterfaceGetLibraryPath gdextension_get_library_path = NULL;
 GDExtensionInterfaceEditorAddPlugin gdextension_editor_add_plugin = NULL;
 GDExtensionInterfaceEditorRemovePlugin gdextension_editor_remove_plugin = NULL;
 GDExtensionInterfaceEditorRegisterGetClassesUsedCallback gdextension_editor_register_get_classes_used_callback = NULL;
-GDExtensionsInterfaceEditorHelpLoadXmlFromUtf8Chars gdextension_editor_help_load_xml_from_utf8_chars = NULL;
-GDExtensionsInterfaceEditorHelpLoadXmlFromUtf8CharsAndLen gdextension_editor_help_load_xml_from_utf8_chars_and_len = NULL;
+GDExtensionInterfaceEditorHelpLoadXmlFromUtf8Chars gdextension_editor_help_load_xml_from_utf8_chars = NULL;
+GDExtensionInterfaceEditorHelpLoadXmlFromUtf8CharsAndLen gdextension_editor_help_load_xml_from_utf8_chars_and_len = NULL;
 GDExtensionInterfaceImagePtrw gdextension_image_ptrw = NULL;
 GDExtensionInterfaceImagePtr gdextension_image_ptr = NULL;
 GDExtensionInterfaceRegisterMainLoopCallbacks gdextension_register_main_loop_callbacks = NULL;
@@ -360,7 +363,7 @@ EXPORT GDExtensionBool gd_extension_init(GDExtensionInterfaceGetProcAddress p_ge
 	LOAD_PROC_ADDRESS(variant_can_convert_strict, GDExtensionInterfaceVariantCanConvertStrict);
 	LOAD_PROC_ADDRESS(get_variant_from_type_constructor, GDExtensionInterfaceGetVariantFromTypeConstructor);
 	LOAD_PROC_ADDRESS(get_variant_to_type_constructor, GDExtensionInterfaceGetVariantToTypeConstructor);
-	LOAD_PROC_ADDRESS(variant_get_ptr_internal_getter, GDExtensionInterfaceGetVariantGetInternalPtrFunc);
+	LOAD_PROC_ADDRESS(variant_get_ptr_internal_getter, GDExtensionInterfaceVariantGetPtrInternalGetter);
 	LOAD_PROC_ADDRESS(variant_get_ptr_operator_evaluator, GDExtensionInterfaceVariantGetPtrOperatorEvaluator);
 	LOAD_PROC_ADDRESS(variant_get_ptr_builtin_method, GDExtensionInterfaceVariantGetPtrBuiltinMethod);
 	LOAD_PROC_ADDRESS(variant_get_ptr_constructor, GDExtensionInterfaceVariantGetPtrConstructor);
@@ -448,12 +451,12 @@ EXPORT GDExtensionBool gd_extension_init(GDExtensionInterfaceGetProcAddress p_ge
 	LOAD_PROC_ADDRESS(object_has_script_method, GDExtensionInterfaceObjectHasScriptMethod);
 	LOAD_PROC_ADDRESS(object_call_script_method, GDExtensionInterfaceObjectCallScriptMethod);
 	LOAD_PROC_ADDRESS(callable_custom_create2, GDExtensionInterfaceCallableCustomCreate2);
-	LOAD_PROC_ADDRESS(callable_custom_get_userdata, GDExtensionInterfaceCallableCustomGetUserData);
+	LOAD_PROC_ADDRESS(callable_custom_get_userdata, GDExtensionInterfaceCallableCustomGetUserdata);
 	LOAD_PROC_ADDRESS(ref_get_object, GDExtensionInterfaceRefGetObject);
 	LOAD_PROC_ADDRESS(ref_set_object, GDExtensionInterfaceRefSetObject);
 	LOAD_PROC_ADDRESS(script_instance_create3, GDExtensionInterfaceScriptInstanceCreate3);
-	LOAD_PROC_ADDRESS(placeholder_script_instance_create, GDExtensionInterfacePlaceHolderScriptInstanceCreate);
-	LOAD_PROC_ADDRESS(placeholder_script_instance_update, GDExtensionInterfacePlaceHolderScriptInstanceUpdate);
+	LOAD_PROC_ADDRESS(placeholder_script_instance_create, GDExtensionInterfacePlaceholderScriptInstanceCreate);
+	LOAD_PROC_ADDRESS(placeholder_script_instance_update, GDExtensionInterfacePlaceholderScriptInstanceUpdate);
 	LOAD_PROC_ADDRESS(object_get_script_instance, GDExtensionInterfaceObjectGetScriptInstance);
 	LOAD_PROC_ADDRESS(object_set_script_instance, GDExtensionInterfaceObjectSetScriptInstance);
 	LOAD_PROC_ADDRESS(classdb_construct_object3, GDExtensionInterfaceClassdbConstructObject3);
@@ -473,8 +476,8 @@ EXPORT GDExtensionBool gd_extension_init(GDExtensionInterfaceGetProcAddress p_ge
 	LOAD_PROC_ADDRESS(editor_add_plugin, GDExtensionInterfaceEditorAddPlugin);
 	LOAD_PROC_ADDRESS(editor_remove_plugin, GDExtensionInterfaceEditorRemovePlugin);
 	LOAD_PROC_ADDRESS(editor_register_get_classes_used_callback, GDExtensionInterfaceEditorRegisterGetClassesUsedCallback);
-	LOAD_PROC_ADDRESS(editor_help_load_xml_from_utf8_chars, GDExtensionsInterfaceEditorHelpLoadXmlFromUtf8Chars);
-	LOAD_PROC_ADDRESS(editor_help_load_xml_from_utf8_chars_and_len, GDExtensionsInterfaceEditorHelpLoadXmlFromUtf8CharsAndLen);
+	LOAD_PROC_ADDRESS(editor_help_load_xml_from_utf8_chars, GDExtensionInterfaceEditorHelpLoadXmlFromUtf8Chars);
+	LOAD_PROC_ADDRESS(editor_help_load_xml_from_utf8_chars_and_len, GDExtensionInterfaceEditorHelpLoadXmlFromUtf8CharsAndLen);
 	LOAD_PROC_ADDRESS(image_ptrw, GDExtensionInterfaceImagePtrw);
 	LOAD_PROC_ADDRESS(image_ptr, GDExtensionInterfaceImagePtr);
 	LOAD_PROC_ADDRESS(register_main_loop_callbacks, GDExtensionInterfaceRegisterMainLoopCallbacks);
@@ -769,8 +772,60 @@ static void *extension_class_caller(void *user_data, GDExtensionConstStringNameP
 static void extension_instance_called(GDExtensionClassInstancePtr p_instance, GDExtensionConstStringNamePtr p_name, void *p_virtual_call_userdata, const GDExtensionConstTypePtr *p_args, GDExtensionTypePtr r_ret) {
     gd_on_extension_instance_called((uintptr_t)p_instance, (uintptr_t)p_virtual_call_userdata, r_ret, (void *)p_args);
 }
+// gd_ring_drain (defined with the ring machinery next to gd_ring_flush)
+// drains the main thread's call ring in C when an engine->Go callback returns,
+// so buffered outbound calls execute without a Go->C crossing to pay for the
+// flush.
+static void gd_ring_drain(void);
+// gd_sticky_call_virtual, when set by Go (internal/sticky.EntryAddr), is a
+// System V C-ABI thunk that runs the virtual dispatch WITHOUT a cgocallback
+// transition (the sticky-P fast path). gd_call_virtual_dispatch routes each
+// virtual call to it when armed, else to the stock cgocallback path.
+void *gd_sticky_call_virtual = 0;
+// gd_frame_active is set by Go (via asmcgocall around the engine Iteration) for
+// the duration of a frame during which the P is HELD — the only window in which
+// the no-transition fast path is safe (m.p valid, so the dispatch can allocate).
+// Outside it, virtual calls take the stock cgocallback path.
+int gd_frame_active = 0;
+// gd_sticky_generic is the ONE generic fast entry (void(uintptr tag, void*frame))
+// for every non-virtual engine->Go callback during a held frame. Set by Go.
+void *gd_sticky_generic = 0;
+static inline void gd_generic(uintptr_t tag, void *frame) {
+    ((void(*)(uintptr_t, void*))gd_sticky_generic)(tag, frame);
+}
+// Callback tags — must match internal/startup genericDispatch.
+enum {
+    GD_TAG_NOTIFICATION = 1,
+    GD_TAG_CHECKED_CALL = 2,
+    GD_TAG_EVERY_FRAME  = 3,
+    GD_TAG_FIRST_FRAME  = 4,
+    GD_TAG_FINAL_FRAME  = 5,
+};
+static void gd_call_virtual_dispatch(GDExtensionClassInstancePtr p_instance, GDExtensionConstStringNamePtr p_name, void *p_virtual_call_userdata, const GDExtensionConstTypePtr *p_args, GDExtensionTypePtr r_ret) {
+    if (gd_sticky_call_virtual) {
+        ((void(*)(GDExtensionClassInstancePtr, GDExtensionConstStringNamePtr, void *, const GDExtensionConstTypePtr *, GDExtensionTypePtr))gd_sticky_call_virtual)(p_instance, p_name, p_virtual_call_userdata, p_args, r_ret);
+    } else {
+        extension_instance_called(p_instance, p_name, p_virtual_call_userdata, p_args, r_ret);
+    }
+    gd_ring_drain();
+}
 static void extension_instance_free(void *p_class_userdata, GDExtensionClassInstancePtr p_instance) {
     gd_on_extension_instance_free((uintptr_t)p_instance);
+}
+// gd_go_handles_notifications is flipped on by Go (classdb) when a registered
+// class implements a Notification handler. Until then the per-frame process
+// tick notifications (NOTIFICATION_PHYSICS_PROCESS=16, NOTIFICATION_PROCESS=17,
+// NOTIFICATION_INTERNAL_PROCESS=25, NOTIFICATION_INTERNAL_PHYSICS_PROCESS=26)
+// are dropped here, engine-side: they arrive once per processing node per frame
+// and would otherwise pay a full C->Go crossing just to hit a no-op.
+bool gd_go_handles_notifications = false;
+static void extension_instance_notification(GDExtensionClassInstancePtr p_instance, int32_t p_what, GDExtensionBool p_reversed) {
+    switch (p_what) {
+    case 16: case 17: case 25: case 26:
+        if (!gd_go_handles_notifications) return;
+    }
+    gd_on_extension_instance_notification((uintptr_t)p_instance, p_what, p_reversed);
+    gd_ring_drain();
 }
 void gd_classdb_register(uintptr_t class_name, uintptr_t parent, uintptr_t id, bool is_virtual, bool abstract, bool exposed, bool runtime, uintptr_t icon_path) {
     GDExtensionClassCreationInfo6 info = {
@@ -786,14 +841,14 @@ void gd_classdb_register(uintptr_t class_name, uintptr_t parent, uintptr_t id, b
         .property_can_revert_func = extension_instance_property_has_default,
         .property_get_revert_func = extension_instance_property_get_default,
         .validate_property_func = extension_instance_property_validation,
-        .notification_func = (GDExtensionClassNotification2)gd_on_extension_instance_notification,
+        .notification_func = (GDExtensionClassNotification2)extension_instance_notification,
         .to_string_func = extension_instance_stringify,
         //.reference_func = (GDExtensionClassReference)class_reference, // FIXME JavaScript error: null function or function signature mismatch
         //.unreference_func = (GDExtensionClassUnreference)class_unreference, // FIXME JavaScript error: null function or function signature mismatch
         .create_instance_func = extension_class_create,
         .free_instance_func = extension_instance_free,
         .get_virtual_call_data_func = extension_class_caller,
-        .call_virtual_with_data_func = extension_instance_called,
+        .call_virtual_with_data_func = gd_call_virtual_dispatch,
         .class_userdata = (void *)id,
     };
     gdextension_classdb_register_extension_class6(gd_library, (GDExtensionConstStringNamePtr)&class_name, (GDExtensionConstStringNamePtr)&parent, &info);
@@ -812,9 +867,12 @@ void gd_classdb_register_property(uintptr_t class_name, uintptr_t info, uintptr_
     property_list *list = (property_list *)info;
     gdextension_classdb_register_extension_class_property(gd_library, (GDExtensionConstStringNamePtr)&class_name, list->info, (GDExtensionConstStringNamePtr)&setter, (GDExtensionConstStringNamePtr)&getter);
 };
-void gd_classdb_register_property_indexed(uintptr_t class_name, uintptr_t info, uintptr_t setter, uintptr_t getter, INT64(index)) {
+// The Go side passes the index as a single (32-bit safe) integer; INT keeps
+// int64_t natively and a single int32 on the web (INT64 would demand a
+// hi/lo pair the callers never sent).
+void gd_classdb_register_property_indexed(uintptr_t class_name, uintptr_t info, uintptr_t setter, uintptr_t getter, INT index) {
     property_list *list = (property_list *)info;
-    gdextension_classdb_register_extension_class_property_indexed(gd_library, (GDExtensionConstStringNamePtr)&class_name, list->info, (GDExtensionConstStringNamePtr)&setter, (GDExtensionConstStringNamePtr)&getter, INT64_FROM(index));
+    gdextension_classdb_register_extension_class_property_indexed(gd_library, (GDExtensionConstStringNamePtr)&class_name, list->info, (GDExtensionConstStringNamePtr)&setter, (GDExtensionConstStringNamePtr)&getter, index);
 };
 void gd_classdb_register_property_group(uintptr_t class_name, uintptr_t group, uintptr_t prefix) {
     gdextension_classdb_register_extension_class_property_group(gd_library, (GDExtensionConstStringNamePtr)&class_name, (GDExtensionConstStringNamePtr)&group, (GDExtensionConstStringPtr)&prefix);
@@ -1068,12 +1126,214 @@ void gd_ring_flush(void *entries, uint32_t tail, uint32_t head, uint32_t *crash_
     }
     *crash_index = 0xFFFFFFFF;
 }
+// C-side draining of the main thread's call ring at engine->Go callback
+// boundaries. Go registers the ring once from the main thread (gd_ring_adopt);
+// after that, the callback trampolines call gd_ring_drain when a callback
+// returns, so entries the callback buffered execute right here in C — no
+// Go->C crossing pays for the flush, and Go's own Flush sites find the ring
+// already empty. gd_ring_owner is thread-local: virtuals arriving on worker
+// threads (resource loader, audio) must not touch the main thread's ring.
+typedef struct {
+    uint32_t head;
+    uint32_t tail;
+    ring_entry entries[256];
+} gd_ring_buffer;
+#ifdef __cplusplus
+static_assert(offsetof(gd_ring_buffer, entries) == 8,
+    "gd_ring_buffer prefix must match ring.Ring (head, tail uint32)");
+#else
+_Static_assert(offsetof(gd_ring_buffer, entries) == 8,
+    "gd_ring_buffer prefix must match ring.Ring (head, tail uint32)");
+#endif
+// gd_mpsc_shared mirrors the Go side's ring.mpscShared: the C-visible state of
+// the cross-thread (MPSC) command ring. head and seq are written by producer
+// goroutines on other threads, so C accesses them with the same atomic
+// ordering as Go's atomic.Uint32 (acquire on seq to observe the published
+// entry bytes, release on the slot's transition out of published). cursor,
+// draining and cdrained are main-thread-only, shared with the Go drain that
+// runs on this same thread.
+typedef struct {
+    uint32_t head;
+    uint32_t cursor;
+    uint32_t draining;
+    uint32_t cdrained;
+    uint32_t seq[256];
+    uint8_t  kind[256];
+} gd_mpsc_shared;
+#ifdef __cplusplus
+static_assert(offsetof(gd_mpsc_shared, seq) == 16 && offsetof(gd_mpsc_shared, kind) == 1040,
+    "gd_mpsc_shared must match ring.mpscShared");
+#else
+_Static_assert(offsetof(gd_mpsc_shared, seq) == 16 && offsetof(gd_mpsc_shared, kind) == 1040,
+    "gd_mpsc_shared must match ring.mpscShared");
+#endif
+static gd_ring_buffer *gd_ring_main = NULL;
+static uint32_t *gd_ring_main_crash_index = NULL;
+static gd_mpsc_shared *gd_ring_threads = NULL;
+static ring_entry *gd_ring_threads_entries = NULL;
+static __thread int gd_ring_owner = 0;
+void gd_ring_adopt(void *ring, uint32_t *crash_index, void *threads_shared, void *threads_entries) {
+    gd_ring_main = (gd_ring_buffer *)ring;
+    gd_ring_main_crash_index = crash_index;
+    gd_ring_threads = (gd_mpsc_shared *)threads_shared;
+    gd_ring_threads_entries = (ring_entry *)threads_entries;
+    gd_ring_owner = 1;
+}
+// Drains the published fire-and-forget prefix of the cross-thread ring: runs
+// of kind==0 entries (plain engine calls). Thunks and parked calls (kind!=0)
+// stop the scan — they need the Go drain (Go functions, cond signalling) and
+// FIFO order must hold. Claim-then-execute: cursor advances before the call so
+// a nested drain (from a callback the call triggers) skips the entry.
+static void gd_ring_drain_threads(void) {
+    gd_mpsc_shared *s = gd_ring_threads;
+    if (s == NULL || s->draining) return;
+    // Hold the drain flag for the loop, exactly like the Go drain: an entry's
+    // engine call can re-enter Go, and neither a nested Go flush nor a nested
+    // C drain may execute later entries before this one completes (FIFO).
+    s->draining = 1;
+    int released = 0;
+    for (;;) {
+        uint32_t i = s->cursor;
+        if (__atomic_load_n(&s->seq[i & 0xFF], __ATOMIC_ACQUIRE) != i + 1) break;
+        if (s->kind[i & 0xFF] != 0) break;
+        s->cursor = i + 1;
+        gd_ring_flush(gd_ring_threads_entries, i, i + 1, gd_ring_main_crash_index);
+        // released: free for the producer of index i+Size. C cannot signal the
+        // Go-side cond a lapped producer parks on; cdrained defers that wake
+        // to the next Go drain.
+        __atomic_store_n(&s->seq[i & 0xFF], i + 256, __ATOMIC_RELEASE);
+        released = 1;
+    }
+    if (released) s->cdrained = 1;
+    s->draining = 0;
+}
+static void gd_ring_drain(void) {
+    if (!gd_ring_owner) return;
+    gd_ring_buffer *r = gd_ring_main;
+    if (r != NULL) {
+        // Claim-then-execute, the same protocol as the Go side's Flush:
+        // advance tail before executing, so re-entrant flushes (nested
+        // callbacks buffering and flushing) only see newly-buffered entries.
+        while (r->tail != r->head) {
+            uint32_t tail = r->tail, head = r->head;
+            r->tail = head;
+            gd_ring_flush(r->entries, tail, head, gd_ring_main_crash_index);
+        }
+    }
+    gd_ring_drain_threads();
+    // A threads entry can buffer main-ring work via a nested callback whose
+    // own trampoline drained it already; this final sweep only catches calls
+    // buffered by paths without a drain of their own (cheap when empty).
+    if (r != NULL && r->tail != r->head) {
+        uint32_t tail = r->tail, head = r->head;
+        r->tail = head;
+        gd_ring_flush(r->entries, tail, head, gd_ring_main_crash_index);
+    }
+}
 uint64_t gd_object_unsafe_call_8(uintptr_t obj, uintptr_t method, UINT64(shape), ANY args) {
     void *points[16]; prepare_callframe(1, &points[0], UINT64_FROM(shape), args);
     uint64_t result = 0;
     gdextension_object_method_bind_ptrcall((GDExtensionMethodBindPtr)method, (GDExtensionObjectPtr)obj, (const GDExtensionConstTypePtr*)&points[0], (GDExtensionTypePtr)&result);
     return result;
 };
+// gd_iterate_g0 wraps the 8-byte-return unsafe call so it can be invoked via
+// runtime.asmcgocall (single pointer arg): asmcgocall runs it on g0 WITHOUT
+// entersyscall, so the P is HELD across the whole engine frame it drives, and
+// the per-node virtual callbacks nested inside can allocate on the fast path.
+struct gd_iter_args { uintptr_t obj; uintptr_t method; uint64_t shape; void *args; uint64_t result; };
+void gd_iterate_g0(struct gd_iter_args *a) {
+    a->result = gd_object_unsafe_call_8(a->obj, a->method, UINT64_MAKE(a->shape), (ANY)(uintptr_t)a->args);
+}
+void *gd_iterate_g0_addr(void) { return (void*)&gd_iterate_g0; }
+// gd_resident_call: outbound method-bind ptrcall for resident-callback mode,
+// invoked via the patched runtime's fastcbCallC (asmcgocall, single pointer
+// argument): the calling goroutine stays _Grunning so engine->Go callbacks
+// nested inside the ptrcall take the resident fast path. The pack must live in
+// NON-MOVING memory (a Go global): nested callbacks can grow and move the
+// goroutine stack, and both this code and the engine (which encodes the return
+// value only after the method body ran) hold raw pointers into the pack across
+// them. Layout must match noescape.residentPack.
+struct gd_resident_pack {
+    uintptr_t object;
+    uintptr_t method;
+    uint64_t  shape;
+    uint8_t   args[256];
+    uint8_t   result[64];
+};
+void gd_resident_call(void *v) {
+    struct gd_resident_pack *p = (struct gd_resident_pack *)v;
+    void *points[16]; prepare_callframe(1, &points[0], p->shape, (ANY)p->args);
+    // Zero the result slot: PtrToArg<T>::encode assigns through T::operator=,
+    // which unrefs whatever the destination bytes appear to point at (see
+    // gd_ring_flush). Packs are reused per nesting depth.
+    __builtin_memset(p->result, 0, sizeof p->result);
+    gdextension_object_method_bind_ptrcall(
+        (GDExtensionMethodBindPtr)p->method,
+        (GDExtensionObjectPtr)p->object,
+        (const GDExtensionConstTypePtr*)&points[0],
+        (GDExtensionTypePtr)p->result
+    );
+}
+void *gd_resident_call_addr(void) { return (void*)&gd_resident_call; }
+// gd_resident_variant_call is the variant-call (method_bind_call) analogue of
+// gd_resident_call, for script/vararg method calls. Same non-moving-memory
+// contract; layout must match noescape.residentVariantPack.
+struct gd_resident_variant_pack {
+    uintptr_t object;
+    uintptr_t method;
+    int64_t   argc;
+    uint8_t   args[240];   // up to 10 Variants, 24 bytes each
+    uint8_t   result[24];  // Variant
+    uint8_t   err[12];     // GDExtensionCallError
+    uint8_t   pad[4];
+};
+void gd_resident_variant_call(void *v) {
+    struct gd_resident_variant_pack *p = (struct gd_resident_variant_pack *)v;
+    void *points[16]; prepare_variants(&points[0], (uint32_t)p->argc, (ANY)p->args);
+    __builtin_memset(p->result, 0, sizeof p->result);
+    gdextension_object_method_bind_call(
+        (GDExtensionMethodBindPtr)p->method,
+        (GDExtensionObjectPtr)p->object,
+        (const GDExtensionConstTypePtr*)&points[0],
+        p->argc,
+        (GDExtensionTypePtr)p->result,
+        (GDExtensionCallError*)p->err
+    );
+}
+void *gd_resident_variant_call_addr(void) { return (void*)&gd_resident_variant_call; }
+// gd_resident_script_call is gd_object_script_call staged for resident mode
+// (same pack layout as gd_resident_variant_call; method holds the StringName
+// value, the engine takes its address).
+void gd_resident_script_call(void *v) {
+    struct gd_resident_variant_pack *p = (struct gd_resident_variant_pack *)v;
+    void *points[16]; points[1] = 0; prepare_variants(&points[0], (uint32_t)p->argc, (ANY)p->args);
+    __builtin_memset(p->result, 0, sizeof p->result);
+    gdextension_object_call_script_method(
+        (GDExtensionObjectPtr)p->object,
+        (GDExtensionConstStringNamePtr)&p->method,
+        (const GDExtensionConstTypePtr*)&points[0],
+        p->argc,
+        (GDExtensionTypePtr)p->result,
+        (GDExtensionCallError*)p->err
+    );
+}
+void *gd_resident_script_call_addr(void) { return (void*)&gd_resident_script_call; }
+// gd_ring_flush_g0 wraps gd_ring_flush behind a single-pointer argument so the
+// resident path can flush the ring via fastcb.CallC (asmcgocall): callbacks
+// triggered by buffered calls (signal handlers, notifications) then take the
+// resident fast path. The pack must be a Go global (see gd_resident_call); the
+// ring itself already is one.
+struct gd_ring_flush_pack {
+    void     *entries;
+    uint32_t  tail;
+    uint32_t  head;
+    uint32_t *crash_index;
+};
+void gd_ring_flush_g0(void *v) {
+    struct gd_ring_flush_pack *p = (struct gd_ring_flush_pack *)v;
+    gd_ring_flush(p->entries, p->tail, p->head, p->crash_index);
+}
+void *gd_ring_flush_g0_addr(void) { return (void*)&gd_ring_flush_g0; }
 result_16 gd_object_unsafe_call_16(uintptr_t obj, uintptr_t method, UINT64(shape), ANY args) {
     void *points[16]; prepare_callframe(1, &points[0], UINT64_FROM(shape), args);
     result_16 result = {};
@@ -1141,7 +1401,7 @@ uintptr_t gd_object_script_make(uintptr_t instance) {
         .has_method_func = extension_script_has_method,
         .get_method_argument_count_func = extension_script_get_method_argument_count,
         .call_func = (GDExtensionScriptInstanceCall)extension_instance_dynamic_call,
-        .notification_func = (GDExtensionClassNotification2)gd_on_extension_instance_notification,
+        .notification_func = (GDExtensionClassNotification2)extension_instance_notification,
         .to_string_func = extension_instance_stringify,
         //.refcount_incremented_func = class_reference,
         //.refcount_decremented_func = class_unreference,
@@ -1416,7 +1676,7 @@ bool gd_variant_eval(uint32_t op, UINT64(a1), UINT64(a2), UINT64(a3), UINT64(b1)
     gdextension_variant_evaluate((GDExtensionVariantOperator)op, &a[0], &b[0], (GDExtensionUninitializedVariantPtr)result, &valid);
     return valid;
 };
-void gd_variant_hash(UINT64(v1), UINT64(v2), UINT64(v3), void *hash) {
+void gd_variant_hash(UINT64(v1), UINT64(v2), UINT64(v3), ANY hash) {
     uint64_t self[3] = {UINT64_FROM(v1), UINT64_FROM(v2), UINT64_FROM(v3)};
     *(int64_t*)hash = gdextension_variant_hash(&self);
 };
@@ -1438,7 +1698,7 @@ void gd_variant_deep_copy(UINT64(v1), UINT64(v2), UINT64(v3), ANY result) {
     uint64_t self[3] = {UINT64_FROM(v1), UINT64_FROM(v2), UINT64_FROM(v3)};
     gdextension_variant_duplicate(&self, (GDExtensionVariantPtr)result, true);
 };
-void gd_variant_deep_hash(UINT64(v1), UINT64(v2), UINT64(v3), INT recursion, void *hash) {
+void gd_variant_deep_hash(UINT64(v1), UINT64(v2), UINT64(v3), INT recursion, ANY hash) {
     uint64_t self[3] = {UINT64_FROM(v1), UINT64_FROM(v2), UINT64_FROM(v3)};
     *(int64_t*)hash = gdextension_variant_recursive_hash(&self, recursion);
 };
@@ -1662,6 +1922,10 @@ extern "C" {
         }
     }
 }
+
+// Generated raw exports for the rest of the gd_* surface, so the Go module's
+// //go:wasmimport bindings resolve directly instead of via syscall/js+embind.
+#include "gd_web_exports.h"
 
 using namespace emscripten;
 EMSCRIPTEN_BINDINGS(my_module) {
