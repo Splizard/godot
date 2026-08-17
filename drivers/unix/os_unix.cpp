@@ -318,6 +318,14 @@ String OS_Unix::get_version() const {
 }
 
 String OS_Unix::get_temp_path() const {
+	// Not every unix-like host has a /tmp (Termux on Android does not); honor
+	// the POSIX TMPDIR convention before falling back to it.
+	if (has_environment("TMPDIR")) {
+		String tmpdir = get_environment("TMPDIR");
+		if (!tmpdir.is_empty()) {
+			return tmpdir;
+		}
+	}
 	return "/tmp";
 }
 
