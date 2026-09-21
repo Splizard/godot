@@ -7085,14 +7085,6 @@ DisplayServerX11::DisplayServerX11(const String &p_rendering_driver, DisplayServ
 	xdnd_finished = XInternAtom(x11_display, "XdndFinished", False);
 	xdnd_selection = XInternAtom(x11_display, "XdndSelection", False);
 
-#ifdef SPEECHD_ENABLED
-	// Init TTS
-	bool tts_enabled = GLOBAL_GET("audio/general/text_to_speech");
-	if (tts_enabled) {
-		initialize_tts();
-	}
-#endif
-
 	//!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//TODO - do Vulkan and OpenGL support checks, driver selection and fallback
 	rendering_driver = p_rendering_driver;
@@ -7191,6 +7183,19 @@ DisplayServerX11::DisplayServerX11(const String &p_rendering_driver, DisplayServ
 			}
 		}
 	}
+#ifdef SPEECHD_ENABLED
+	// Init TTS after GPU detection: detect_prime() forks without exec'ing, while
+	// the speech-dispatcher init thread concurrently dlopens libspeechd and spawns
+	// threads in the host libc. Forking while that dlopen holds the host loader
+	// lock leaves the child (which dlopens GL drivers itself via XOpenDisplay)
+	// deadlocked on the stale lock when running as a static (musl) binary with
+	// graphics.gd's borrowed loader.
+	bool tts_enabled = GLOBAL_GET("audio/general/text_to_speech");
+	if (tts_enabled) {
+		initialize_tts();
+	}
+#endif
+
 	if (rendering_driver == "opengl3") {
 		gl_manager = memnew(GLManager_X11(p_resolution, GLManager_X11::GLES_3_0_COMPATIBLE));
 		if (gl_manager->initialize(x11_display) != OK || gl_manager->open_display(x11_display) != OK) {
