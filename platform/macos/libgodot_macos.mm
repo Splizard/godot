@@ -32,6 +32,7 @@
 
 #include "core/extension/godot_instance.h"
 #include "core/extension/libgodot.h"
+#include "core/os/thread.h"
 #include "main/main.h"
 
 static OS_MacOS *os = nullptr;
@@ -56,6 +57,15 @@ GDExtensionObjectPtr libgodot_create_godot_instance(int p_argc, char *p_argv[], 
 			instance = nullptr;
 			return nullptr;
 		}
+
+		// Main::setup() claimed the main-thread identity for this thread, but the
+		// embedding host drives GodotInstance::start() (Main::setup2) and the
+		// iteration loop from whichever thread it likes -- for graphics.gd's static
+		// builds that is a different thread from the one running this call. Since
+		// 4.7.2 the identity is exclusive (Thread::is_main_thread_assigned), so
+		// hand it back here and let setup2 claim it, exactly as platform/android
+		// (and the linuxbsd and windows entry points here) do for the same reason.
+		Thread::release_main_thread();
 
 		return (GDExtensionObjectPtr)instance;
 	}
