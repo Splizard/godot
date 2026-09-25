@@ -515,35 +515,24 @@ void prepare_variants(void **frame, uint32_t argc, ANY args) {
 }
 // Helper macro to align a value to the next multiple of 'align'
 #define ALIGN_UP(value, align) (((value) + ((align) - 1)) & ~((align) - 1))
+// Packed size and alignment of each shape nibble code, mirroring the Go
+// side's shapeSizes/shapeAlignMasks (gdextension.SizeArguments).
+static const uint8_t gd_shape_sizes[16]  = {0, 1, 2, 4, 8, 8, 12, 16, 16, 24, 24, 36, 48, 64, 0, 0};
+static const uint8_t gd_shape_aligns[16] = {1, 1, 2, 4, 8, 4, 4, 8, 4, 8, 4, 4, 4, 4, 1, 1};
 uint8_t prepare_callframe(int skip, void **frame, uint64_t shape, ANY args) {
     uint8_t *head = (uint8_t *)args;
     ptrdiff_t offset = 0; // Track current offset in the frame
-    for (int i = skip; i < 16; i++) {
-        Shape code = (Shape)((shape >> (i * 4)) & 0xF);
-        uint32_t size;
-        uint32_t align;
-        // Determine size based on code
-        switch (code) {
-            case ShapeEmpty: size = 0; frame[i-skip] = NULL; return i-skip;
-            case ShapeBytes1: size = 1; align = 1; break;
-            case ShapeBytes2: size = 2; align = 2; break;
-            case ShapeBytes4: size = 4; align = 4; break;
-            case ShapeBytes8: size = 8; align = 8; break;
-            case ShapeBytes4x2: size = 4*2; align = 4; break;
-            case ShapeBytes4x3: size = 4*3; align = 4; break;
-            case ShapeBytes8x2: size = 8*2; align = 8; break;
-            case ShapeBytes4x4: size = 4*4; align = 4; break;
-            case ShapeBytes8x3: size = 8*3; align = 8; break;
-            case ShapeBytes4x6: size = 4*6; align = 4; break;
-            case ShapeBytes4x9: size = 4*9; align = 4; break;
-            case ShapeBytes4x12: size = 4*12; align = 4; break;
-            case ShapeBytes4x16: size = 4*16; align = 4; break;
-        }
-        offset = ALIGN_UP(offset, align);
-        frame[i-skip] = head + offset;     // Set frame pointer to the aligned address
-        offset += size;                 // Move offset forward by the size of the current argument
+    int i = 0;
+    // Nibbles are contiguous with all higher nibbles zero, so the walk can
+    // stop when the remaining bits run out.
+    for (uint64_t s = shape >> (skip * 4); s; s >>= 4, i++) {
+        Shape code = (Shape)(s & 0xF);
+        offset = ALIGN_UP(offset, gd_shape_aligns[code]);
+        frame[i] = head + offset;
+        offset += gd_shape_sizes[code];
     }
-    return 16-skip;
+    if (i < 16 - skip) frame[i] = NULL;
+    return i;
 }
 uintptr_t gd_builtin_name(uintptr_t name, INT64(hash)) { return (uintptr_t)gdextension_variant_get_ptr_utility_function((GDExtensionConstStringNamePtr)&name, INT64_FROM(hash));}
 void gd_builtin_call(uintptr_t fn, ANY result, UINT64(shape), ANY args) {
@@ -772,6 +761,11 @@ static void *extension_class_caller(void *user_data, GDExtensionConstStringNameP
 static void extension_instance_called(GDExtensionClassInstancePtr p_instance, GDExtensionConstStringNamePtr p_name, void *p_virtual_call_userdata, const GDExtensionConstTypePtr *p_args, GDExtensionTypePtr r_ret) {
     gd_on_extension_instance_called((uintptr_t)p_instance, (uintptr_t)p_virtual_call_userdata, r_ret, (void *)p_args);
 }
+// gd_stock_virtual_entry exposes the stock entry above so Go can register it
+// as the fallback target of a fast-path thunk (compiler.gd's runtime
+// fastcbentry tail-jumps to it, arguments untouched, whenever the resident
+// fast path's preconditions do not hold).
+void *gd_stock_virtual_entry(void) { return (void*)extension_instance_called; }
 // gd_ring_drain (defined with the ring machinery next to gd_ring_flush)
 // drains the main thread's call ring in C when an engine->Go callback returns,
 // so buffered outbound calls execute without a Go->C crossing to pay for the
@@ -1116,7 +1110,9 @@ void gd_ring_flush(void *entries, uint32_t tail, uint32_t head, uint32_t *crash_
         // result bytes from an earlier call would be unref'd here — freeing
         // a value that a previous caller copied out and still owns (the
         // direct call paths zero their local result buffer the same way).
-        __builtin_memset(e->result, 0, sizeof e->result);
+        // Void methods (result nibble empty) never write the slot, so the
+        // zeroing is skipped for them — they are the bulk of buffered calls.
+        if (e->shape & 0xF) __builtin_memset(e->result, 0, sizeof e->result);
         gdextension_object_method_bind_ptrcall(
             (GDExtensionMethodBindPtr)e->method,
             (GDExtensionObjectPtr)e->object,
@@ -1159,6 +1155,10 @@ typedef struct {
     uint32_t cdrained;
     uint32_t seq[256];
     uint8_t  kind[256];
+    // executed counts kindCall entries either drain has run (loss
+    // diagnostics, mirrors ring.mpscShared.executed). Main-thread writes;
+    // atomic so Go may read it from any goroutine.
+    uint64_t executed;
 } gd_mpsc_shared;
 #ifdef __cplusplus
 static_assert(offsetof(gd_mpsc_shared, seq) == 16 && offsetof(gd_mpsc_shared, kind) == 1040,
@@ -1187,6 +1187,11 @@ void gd_ring_adopt(void *ring, uint32_t *crash_index, void *threads_shared, void
 static void gd_ring_drain_threads(void) {
     gd_mpsc_shared *s = gd_ring_threads;
     if (s == NULL || s->draining) return;
+    // Empty fast path: nothing published at the cursor. This runs after
+    // EVERY engine->Go callback (gd_ring_drain), so skip the draining-flag
+    // stores when there is no work; the acquire load is the same check the
+    // loop below would make first.
+    if (__atomic_load_n(&s->seq[s->cursor & 0xFF], __ATOMIC_ACQUIRE) != s->cursor + 1) return;
     // Hold the drain flag for the loop, exactly like the Go drain: an entry's
     // engine call can re-enter Go, and neither a nested Go flush nor a nested
     // C drain may execute later entries before this one completes (FIFO).
@@ -1198,6 +1203,7 @@ static void gd_ring_drain_threads(void) {
         if (s->kind[i & 0xFF] != 0) break;
         s->cursor = i + 1;
         gd_ring_flush(gd_ring_threads_entries, i, i + 1, gd_ring_main_crash_index);
+        __atomic_fetch_add(&s->executed, 1, __ATOMIC_RELAXED);
         // released: free for the producer of index i+Size. C cannot signal the
         // Go-side cond a lapped producer parks on; cdrained defers that wake
         // to the next Go drain.
@@ -1442,7 +1448,8 @@ uint8_t gd_packed_byte_array_access(UINT a1, UINT a2, INT i) {
 };
 uintptr_t gd_packed_color_array_unsafe(UINT a1, UINT a2) {
     uintptr_t packed_array[2] = {a1, a2};
-    return (uintptr_t)gdextension_packed_color_array_operator_index(&packed_array[0], 0);
+    // Const index: writable operator_index can COW and invalidate bulk reads.
+    return (uintptr_t)gdextension_packed_color_array_operator_index_const(&packed_array[0], 0);
 };
 void gd_packed_color_array_access(UINT a1, UINT a2, INT i, ANY result) {
     uintptr_t packed_array[2] = {a1, a2};
@@ -1451,7 +1458,8 @@ void gd_packed_color_array_access(UINT a1, UINT a2, INT i, ANY result) {
 };
 uintptr_t gd_packed_float32_array_unsafe(UINT a1, UINT a2) {
     uintptr_t packed_array[2] = {a1, a2};
-    return (uintptr_t)gdextension_packed_float32_array_operator_index(&packed_array[0], 0);
+    // Const index: writable operator_index can COW and invalidate bulk reads.
+    return (uintptr_t)gdextension_packed_float32_array_operator_index_const(&packed_array[0], 0);
 };
 float gd_packed_float32_array_access(UINT a1, UINT a2, INT i) {
     uintptr_t packed_array[2] = {a1, a2};
@@ -1459,7 +1467,8 @@ float gd_packed_float32_array_access(UINT a1, UINT a2, INT i) {
 };
 uintptr_t gd_packed_float64_array_unsafe(UINT a1, UINT a2) {
     uintptr_t packed_array[2] = {a1, a2};
-    return (uintptr_t)gdextension_packed_float64_array_operator_index(&packed_array[0], 0);
+    // Const index: writable operator_index can COW and invalidate bulk reads.
+    return (uintptr_t)gdextension_packed_float64_array_operator_index_const(&packed_array[0], 0);
 };
 double gd_packed_float64_array_access(UINT a1, UINT a2, INT i) {
     uintptr_t packed_array[2] = {a1, a2};
@@ -1467,7 +1476,8 @@ double gd_packed_float64_array_access(UINT a1, UINT a2, INT i) {
 };
 uintptr_t gd_packed_int32_array_unsafe(UINT a1, UINT a2) {
     uintptr_t packed_array[2] = {a1, a2};
-    return (uintptr_t)gdextension_packed_int32_array_operator_index(&packed_array[0], 0);
+    // Const index: writable operator_index can COW and invalidate bulk reads.
+    return (uintptr_t)gdextension_packed_int32_array_operator_index_const(&packed_array[0], 0);
 };
 int32_t gd_packed_int32_array_access(UINT a1, UINT a2, INT i) {
     uintptr_t packed_array[2] = {a1, a2};
@@ -1475,7 +1485,8 @@ int32_t gd_packed_int32_array_access(UINT a1, UINT a2, INT i) {
 };
 uintptr_t gd_packed_int64_array_unsafe(UINT a1, UINT a2) {
     uintptr_t packed_array[2] = {a1, a2};
-    return (uintptr_t)gdextension_packed_int64_array_operator_index(&packed_array[0], 0);
+    // Const index: writable operator_index can COW and invalidate bulk reads.
+    return (uintptr_t)gdextension_packed_int64_array_operator_index_const(&packed_array[0], 0);
 };
 void gd_packed_int64_array_access(UINT a1, UINT a2, INT i, ANY value) {
     uintptr_t packed_array[2] = {a1, a2};
@@ -1483,7 +1494,8 @@ void gd_packed_int64_array_access(UINT a1, UINT a2, INT i, ANY value) {
 };
 uintptr_t gd_packed_string_array_unsafe(UINT a1, UINT a2) {
     uintptr_t packed_array[2] = {a1, a2};
-    return (uintptr_t)gdextension_packed_string_array_operator_index(&packed_array[0], 0);
+    // Const index: writable operator_index can COW and invalidate bulk reads.
+    return (uintptr_t)gdextension_packed_string_array_operator_index_const(&packed_array[0], 0);
 };
 uintptr_t gd_packed_string_array_access(UINT a1, UINT a2, INT i) {
     uintptr_t packed_array[2] = {a1, a2};
@@ -1505,7 +1517,8 @@ void gd_array_get(uintptr_t a, INT i, ANY result) {
 };
 uintptr_t gd_packed_vector2_array_unsafe(UINT a1, UINT a2) {
     uintptr_t packed_array[2] = {a1, a2};
-    return (uintptr_t)gdextension_packed_vector2_array_operator_index(&packed_array[0], 0);
+    // Const index: writable operator_index can COW and invalidate bulk reads.
+    return (uintptr_t)gdextension_packed_vector2_array_operator_index_const(&packed_array[0], 0);
 };
 void gd_packed_vector2_array_access(UINT a1, UINT a2, INT i, ANY result) {
     uintptr_t packed_array[2] = {a1, a2};
@@ -1514,7 +1527,8 @@ void gd_packed_vector2_array_access(UINT a1, UINT a2, INT i, ANY result) {
 };
 uintptr_t gd_packed_vector3_array_unsafe(UINT a1, UINT a2) {
     uintptr_t packed_array[2] = {a1, a2};
-    return (uintptr_t)gdextension_packed_vector3_array_operator_index(&packed_array[0], 0);
+    // Const index: writable operator_index can COW and invalidate bulk reads.
+    return (uintptr_t)gdextension_packed_vector3_array_operator_index_const(&packed_array[0], 0);
 };
 void gd_packed_vector3_array_access(UINT a1, UINT a2, INT i, ANY result) {
     uintptr_t packed_array[2] = {a1, a2};
@@ -1523,7 +1537,8 @@ void gd_packed_vector3_array_access(UINT a1, UINT a2, INT i, ANY result) {
 };
 uintptr_t gd_packed_vector4_array_unsafe(UINT a1, UINT a2) {
     uintptr_t packed_array[2] = {a1, a2};
-    return (uintptr_t)gdextension_packed_vector4_array_operator_index(&packed_array[0], 0);
+    // Const index: writable operator_index can COW and invalidate bulk reads.
+    return (uintptr_t)gdextension_packed_vector4_array_operator_index_const(&packed_array[0], 0);
 };
 void gd_packed_vector4_array_access(UINT a1, UINT a2, INT i, ANY result) {
     uintptr_t packed_array[2] = {a1, a2};
