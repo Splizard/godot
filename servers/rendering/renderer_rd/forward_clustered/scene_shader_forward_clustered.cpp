@@ -107,6 +107,7 @@ void SceneShaderForwardClustered::ShaderData::set_code(const String &p_code) {
 
 	actions.render_mode_values["alpha_to_coverage"] = Pair<int *, int>(&alpha_antialiasing_mode, ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE);
 	actions.render_mode_values["alpha_to_coverage_and_one"] = Pair<int *, int>(&alpha_antialiasing_mode, ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE_AND_TO_ONE);
+	actions.render_mode_values["alpha_to_coverage_opaque"] = Pair<int *, int>(&alpha_antialiasing_mode, ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE_OPAQUE);
 
 	actions.render_mode_values["depth_draw_never"] = Pair<int *, int>(&depth_drawi, DEPTH_DRAW_DISABLED);
 	actions.render_mode_values["depth_draw_opaque"] = Pair<int *, int>(&depth_drawi, DEPTH_DRAW_OPAQUE);
@@ -250,8 +251,9 @@ void SceneShaderForwardClustered::ShaderData::set_code(const String &p_code) {
 
 	pipeline_hash_map.clear_pipelines();
 
-	// If any form of Alpha Antialiasing is enabled, set the blend mode to alpha to coverage.
-	if (alpha_antialiasing_mode != ALPHA_ANTIALIASING_OFF) {
+	// If any form of Alpha Antialiasing is enabled, set the blend mode to alpha to coverage;
+	// in the opaque pass nothing is blended.
+	if (alpha_antialiasing_mode != ALPHA_ANTIALIASING_OFF && alpha_antialiasing_mode != ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE_OPAQUE) {
 		blend_mode = BLEND_MODE_ALPHA_TO_COVERAGE;
 	}
 
@@ -264,7 +266,7 @@ bool SceneShaderForwardClustered::ShaderData::is_animated() const {
 
 bool SceneShaderForwardClustered::ShaderData::casts_shadows() const {
 	bool has_read_screen_alpha = uses_screen_texture || uses_depth_texture || uses_normal_texture;
-	bool has_base_alpha = (uses_alpha && (!uses_alpha_clip || uses_alpha_antialiasing)) || has_read_screen_alpha;
+	bool has_base_alpha = (uses_alpha && (!uses_alpha_clip || (uses_alpha_antialiasing && !uses_opaque_alpha_to_coverage()))) || has_read_screen_alpha;
 	bool has_alpha = has_base_alpha || uses_blend_alpha;
 
 	return !has_alpha || (uses_depth_prepass_alpha && !(depth_draw == DEPTH_DRAW_DISABLED || depth_test != DEPTH_TEST_ENABLED));
@@ -474,7 +476,12 @@ void SceneShaderForwardClustered::ShaderData::_create_pipeline(PipelineKey p_pip
 		} else {
 			blend_state = blend_state_color_opaque;
 
-			if (depth_pre_pass_enabled) {
+			if (uses_opaque_alpha_to_coverage()) {
+				multisample_state.enable_alpha_to_coverage = true;
+				multisample_state.enable_alpha_to_one = true;
+				// The prepass holds only the solid core; the edges it left out
+				// are drawn here, and their depth with them.
+			} else if (depth_pre_pass_enabled) {
 				// We already have a depth from the depth pre-pass, there is no need to write it again.
 				// In addition we can use COMPARE_OP_EQUAL instead of COMPARE_OP_LESS_OR_EQUAL.
 				// This way we can use the early depth test to discard transparent fragments before the fragment shader even starts.
