@@ -173,7 +173,12 @@ public:
 		enum AlphaAntiAliasing {
 			ALPHA_ANTIALIASING_OFF,
 			ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE,
-			ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE_AND_TO_ONE
+			ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE_AND_TO_ONE,
+			// Alpha to coverage (and to one) drawn with the opaque: nothing
+			// is blended, depth is written, and the material keeps its
+			// shadows and needs no sorting against what is see-through
+			// (see the forward clustered renderer's).
+			ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE_OPAQUE,
 		};
 
 		enum StencilFlags {
@@ -294,9 +299,13 @@ public:
 		uint64_t last_pass = 0;
 		uint32_t index = 0;
 
+		_FORCE_INLINE_ bool uses_opaque_alpha_to_coverage() const {
+			return alpha_antialiasing_mode == ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE_OPAQUE;
+		}
+
 		_FORCE_INLINE_ bool uses_alpha_pass() const {
 			bool has_read_screen_alpha = uses_screen_texture || uses_depth_texture || uses_normal_texture;
-			bool has_base_alpha = (uses_alpha && (!uses_alpha_clip || uses_alpha_antialiasing));
+			bool has_base_alpha = (uses_alpha && (!uses_alpha_clip || (uses_alpha_antialiasing && !uses_opaque_alpha_to_coverage())));
 			bool has_blend_alpha = uses_blend_alpha;
 			bool has_alpha = has_base_alpha || has_blend_alpha;
 			bool no_depth_draw = depth_draw == DEPTH_DRAW_DISABLED;

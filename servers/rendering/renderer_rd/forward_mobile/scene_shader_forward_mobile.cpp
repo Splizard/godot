@@ -107,6 +107,7 @@ void SceneShaderForwardMobile::ShaderData::set_code(const String &p_code) {
 
 	actions.render_mode_values["alpha_to_coverage"] = Pair<int *, int>(&alpha_antialiasing_mode, ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE);
 	actions.render_mode_values["alpha_to_coverage_and_one"] = Pair<int *, int>(&alpha_antialiasing_mode, ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE_AND_TO_ONE);
+	actions.render_mode_values["alpha_to_coverage_opaque"] = Pair<int *, int>(&alpha_antialiasing_mode, ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE_OPAQUE);
 
 	actions.render_mode_values["depth_draw_never"] = Pair<int *, int>(&depth_drawi, DEPTH_DRAW_DISABLED);
 	actions.render_mode_values["depth_draw_opaque"] = Pair<int *, int>(&depth_drawi, DEPTH_DRAW_OPAQUE);
@@ -255,8 +256,9 @@ void SceneShaderForwardMobile::ShaderData::set_code(const String &p_code) {
 
 	pipeline_hash_map.clear_pipelines();
 
-	// If any form of Alpha Antialiasing is enabled, set the blend mode to alpha to coverage.
-	if (alpha_antialiasing_mode != ALPHA_ANTIALIASING_OFF) {
+	// If any form of Alpha Antialiasing is enabled, set the blend mode to alpha to coverage;
+	// in the opaque pass nothing is blended.
+	if (alpha_antialiasing_mode != ALPHA_ANTIALIASING_OFF && alpha_antialiasing_mode != ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE_OPAQUE) {
 		blend_mode = BLEND_MODE_ALPHA_TO_COVERAGE;
 	}
 
@@ -269,7 +271,7 @@ bool SceneShaderForwardMobile::ShaderData::is_animated() const {
 
 bool SceneShaderForwardMobile::ShaderData::casts_shadows() const {
 	bool has_read_screen_alpha = uses_screen_texture || uses_depth_texture || uses_normal_texture;
-	bool has_base_alpha = (uses_alpha && (!uses_alpha_clip || uses_alpha_antialiasing)) || has_read_screen_alpha;
+	bool has_base_alpha = (uses_alpha && (!uses_alpha_clip || (uses_alpha_antialiasing && !uses_opaque_alpha_to_coverage()))) || has_read_screen_alpha;
 	bool has_alpha = has_base_alpha || uses_blend_alpha;
 
 	return !has_alpha || (uses_depth_prepass_alpha && !(depth_draw == DEPTH_DRAW_DISABLED || depth_test != DEPTH_TEST_ENABLED));
@@ -412,7 +414,7 @@ void SceneShaderForwardMobile::ShaderData::_create_pipeline(PipelineKey p_pipeli
 	multisample_state.sample_count = RD::get_singleton()->framebuffer_format_get_texture_samples(p_pipeline_key.framebuffer_format_id, 0);
 
 	RD::PipelineColorBlendState blend_state;
-	if (uses_alpha || uses_blend_alpha) {
+	if ((uses_alpha && !uses_opaque_alpha_to_coverage()) || uses_blend_alpha) {
 		// These flags should only go through if we have some form of MSAA.
 		if (alpha_antialiasing_mode == ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE) {
 			multisample_state.enable_alpha_to_coverage = true;
@@ -438,6 +440,11 @@ void SceneShaderForwardMobile::ShaderData::_create_pipeline(PipelineKey p_pipeli
 	} else {
 		if (p_pipeline_key.version == SHADER_VERSION_COLOR_PASS || p_pipeline_key.version == SHADER_VERSION_COLOR_PASS_MULTIVIEW || p_pipeline_key.version == SHADER_VERSION_LIGHTMAP_COLOR_PASS || p_pipeline_key.version == SHADER_VERSION_LIGHTMAP_COLOR_PASS_MULTIVIEW || p_pipeline_key.version == SHADER_VERSION_MOTION_VECTORS_MULTIVIEW) {
 			blend_state = blend_state_opaque;
+			if (uses_opaque_alpha_to_coverage()) {
+				// Cut out by coverage, with the opaque (only with MSAA).
+				multisample_state.enable_alpha_to_coverage = true;
+				multisample_state.enable_alpha_to_one = true;
+			}
 		} else if (p_pipeline_key.version == SHADER_VERSION_SHADOW_PASS || p_pipeline_key.version == SHADER_VERSION_SHADOW_PASS_MULTIVIEW || p_pipeline_key.version == SHADER_VERSION_SHADOW_PASS_DP) {
 			// Contains nothing.
 		} else if (p_pipeline_key.version == SHADER_VERSION_DEPTH_PASS_WITH_MATERIAL) {
