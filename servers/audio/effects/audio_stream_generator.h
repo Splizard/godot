@@ -79,7 +79,10 @@ class AudioStreamGeneratorPlayback : public AudioStreamPlaybackResampled {
 	int skips;
 	bool active;
 	float mixed;
-	AudioStreamGenerator *generator = nullptr;
+	// A reference, not a pointer: the mixer thread keeps (and mixes) the
+	// playback until it notices it was stopped, which can be after the player
+	// that owned the stream has dropped it, e.g. while a scene tree is freed.
+	Ref<AudioStreamGenerator> generator;
 
 protected:
 	virtual int _mix_internal(AudioFrame *p_buffer, int p_frames) override;
