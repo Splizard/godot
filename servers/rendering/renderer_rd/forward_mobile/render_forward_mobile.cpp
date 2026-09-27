@@ -29,6 +29,7 @@
 /**************************************************************************/
 
 #include "render_forward_mobile.h"
+#include "core/os/os.h"
 
 #include "core/config/project_settings.h"
 #include "servers/rendering/renderer_rd/framebuffer_cache_rd.h"
@@ -2339,6 +2340,13 @@ void RenderForwardMobile::_fill_render_list(RenderListType p_render_list, const 
 				}
 				if (surf->flags & GeometryInstanceSurfaceDataCache::FLAG_USES_DEPTH_TEXTURE) {
 					scene_state.used_depth_texture = true;
+				}
+				if (OS::get_singleton()->get_environment("GODOT_TELL_SCREEN_READS") != "" && (surf->flags & (GeometryInstanceSurfaceDataCache::FLAG_USES_SCREEN_TEXTURE | GeometryInstanceSurfaceDataCache::FLAG_USES_DEPTH_TEXTURE))) {
+					static HashSet<const void *> told;
+					if (!told.has(surf->shader)) {
+						told.insert(surf->shader);
+						print_line("reads the screen or depth:", surf->shader->code.substr(0, 400));
+					}
 				}
 				if ((surf->flags & GeometryInstanceSurfaceDataCache::FLAG_USES_STENCIL) && !force_alpha && (surf->flags & (GeometryInstanceSurfaceDataCache::FLAG_PASS_DEPTH | GeometryInstanceSurfaceDataCache::FLAG_PASS_OPAQUE))) {
 					scene_state.used_opaque_stencil = true;
