@@ -1396,6 +1396,17 @@ void main() {
 	alpha = compute_alpha_antialiasing_edge(alpha, alpha_texture_coordinate, alpha_antialiasing_edge);
 #endif // ALPHA_ANTIALIASING_EDGE_USED
 
+#if !defined(MODE_RENDER_DEPTH) && !defined(MODE_MULTIPLE_RENDER_TARGETS) && defined(ALPHA_ANTIALIASING_EDGE_USED)
+	// The depth prepass of an alpha_to_coverage_opaque material: the
+	// coverage its alpha gives lays the depth, and nothing is lit. The
+	// colour pass then draws only where it is equal, so each sample of a
+	// crown is shaded once, however many leaves lie behind it.
+	if (sc_depth_prepass()) {
+		frag_color = vec4(0.0, 0.0, 0.0, float(alpha));
+		return;
+	}
+#endif
+
 #ifdef MODE_RENDER_DEPTH
 #if defined(USE_OPAQUE_PREPASS) || defined(ALPHA_ANTIALIASING_EDGE_USED)
 	if (alpha < half(scene_data.opaque_prepass_threshold)) {

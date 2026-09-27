@@ -1269,6 +1269,15 @@ void RenderForwardMobile::_render_scene(RenderDataRD *p_render_data, const Color
 			render_list_params.framebuffer_format = fb_format;
 			render_list_params.subpass = RD::get_singleton()->draw_list_get_current_pass(); // Should now always be 0.
 
+			// The alpha_to_coverage_opaque materials' depth first, in the
+			// same pass, so the colour pass lights each of their samples
+			// once: without it every leaf of a crown is lit, the ones
+			// behind as well, since cut-out geometry gets no early
+			// rejection on a tiling GPU.
+			render_list_params.depth_prepass = true;
+			_render_list(draw_list, fb_format, &render_list_params, 0, render_list_params.element_count);
+			render_list_params.depth_prepass = false;
+
 			_render_list(draw_list, fb_format, &render_list_params, 0, render_list_params.element_count);
 		}
 
@@ -2450,8 +2459,12 @@ void RenderForwardMobile::_render_list_template(RenderingDevice::DrawListID p_dr
 		if (inst->instance_count == 0) {
 			continue;
 		}
+		if (p_params->depth_prepass && !(surf->shader && surf->shader->uses_opaque_alpha_to_coverage())) {
+			continue;
+		}
 
 		SceneShaderForwardMobile::ShaderSpecialization pipeline_specialization = p_params->base_specialization;
+		pipeline_specialization.depth_prepass = p_params->depth_prepass;
 		pipeline_specialization.multimesh = bool(inst->flags_cache & INSTANCE_DATA_FLAG_MULTIMESH);
 		pipeline_specialization.multimesh_format_2d = bool(inst->flags_cache & INSTANCE_DATA_FLAG_MULTIMESH_FORMAT_2D);
 		pipeline_specialization.multimesh_has_color = bool(inst->flags_cache & INSTANCE_DATA_FLAG_MULTIMESH_HAS_COLOR);
@@ -2564,7 +2577,9 @@ void RenderForwardMobile::_render_list_template(RenderingDevice::DrawListID p_dr
 		RID pipeline_rd;
 		RID vertex_array_rd;
 		RID index_array_rd;
-		uint32_t ubershader_iterations = (disable_ubershaders ? 1 : 2);
+		// The prepass's state (no colour, depth written) is in its
+		// specialization, which the ubershader's key leaves out.
+		uint32_t ubershader_iterations = (disable_ubershaders || p_params->depth_prepass ? 1 : 2);
 		bool pipeline_valid = false;
 		while (pipeline_key.ubershader < ubershader_iterations) {
 			// Skeleton and blend shape.

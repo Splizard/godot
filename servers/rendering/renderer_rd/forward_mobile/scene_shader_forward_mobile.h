@@ -109,7 +109,9 @@ public:
 				uint32_t scene_use_ambient_cubemap : 1;
 				uint32_t scene_use_reflection_cubemap : 1;
 				uint32_t scene_roughness_limiter_enabled : 1;
-				uint32_t padding_0 : 1;
+				// The depth-only prepass of an alpha_to_coverage_opaque
+				// material: its fragment stops once its alpha is known.
+				uint32_t depth_prepass : 1;
 
 				uint32_t soft_shadow_samples : 6;
 				uint32_t penumbra_shadow_samples : 6;

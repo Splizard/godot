@@ -441,9 +441,23 @@ void SceneShaderForwardMobile::ShaderData::_create_pipeline(PipelineKey p_pipeli
 		if (p_pipeline_key.version == SHADER_VERSION_COLOR_PASS || p_pipeline_key.version == SHADER_VERSION_COLOR_PASS_MULTIVIEW || p_pipeline_key.version == SHADER_VERSION_LIGHTMAP_COLOR_PASS || p_pipeline_key.version == SHADER_VERSION_LIGHTMAP_COLOR_PASS_MULTIVIEW || p_pipeline_key.version == SHADER_VERSION_MOTION_VECTORS_MULTIVIEW) {
 			blend_state = blend_state_opaque;
 			if (uses_opaque_alpha_to_coverage()) {
-				// Cut out by coverage, with the opaque (only with MSAA).
+				// Cut out by coverage, with the opaque (only with MSAA). The
+				// prepass lays each covered sample's depth and writes no
+				// colour; the colour pass then shades only the samples whose
+				// depth it laid, and writes none, so a leaf hidden behind
+				// another is never lit (render_forward_mobile's opaque pass).
 				multisample_state.enable_alpha_to_coverage = true;
-				multisample_state.enable_alpha_to_one = true;
+				if (p_pipeline_key.shader_specialization.depth_prepass) {
+					for (RD::PipelineColorBlendState::Attachment &attachment : blend_state.attachments) {
+						attachment.write_r = attachment.write_g = attachment.write_b = attachment.write_a = false;
+					}
+				} else {
+					multisample_state.enable_alpha_to_one = true;
+					if (depth_stencil_state.enable_depth_test) {
+						depth_stencil_state.depth_compare_operator = RD::COMPARE_OP_EQUAL;
+						depth_stencil_state.enable_depth_write = false;
+					}
+				}
 			}
 		} else if (p_pipeline_key.version == SHADER_VERSION_SHADOW_PASS || p_pipeline_key.version == SHADER_VERSION_SHADOW_PASS_MULTIVIEW || p_pipeline_key.version == SHADER_VERSION_SHADOW_PASS_DP) {
 			// Contains nothing.
