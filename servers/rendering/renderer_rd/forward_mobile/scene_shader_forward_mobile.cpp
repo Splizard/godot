@@ -708,6 +708,7 @@ void SceneShaderForwardMobile::init(const String p_defines) {
 		actions.renames["UV2"] = "uv2_interp";
 		actions.renames["COLOR"] = "color_highp";
 		actions.renames["POINT_SIZE"] = "point_size";
+		actions.renames["CLIP_DISTANCE"] = "clip_distance";
 		actions.renames["INSTANCE_ID"] = "INSTANCE_INDEX";
 		actions.renames["VERTEX_ID"] = "VERTEX_INDEX";
 		actions.renames["Z_CLIP_SCALE"] = "z_clip_scale";
@@ -843,6 +844,7 @@ void SceneShaderForwardMobile::init(const String p_defines) {
 		actions.usage_defines["MODEL_MATRIX"] = "#define MODEL_MATRIX_USED\n";
 
 		actions.usage_defines["POINT_SIZE"] = "#define POINT_SIZE_USED\n";
+		actions.usage_defines["CLIP_DISTANCE"] = "#define CLIP_DISTANCE_USED\n";
 		actions.usage_defines["POINT_COORD"] = "#define POINT_COORD_USED\n";
 
 		actions.render_mode_defines["skip_vertex_transform"] = "#define SKIP_TRANSFORM_USED\n";

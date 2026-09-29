@@ -445,10 +445,20 @@ void vertex_shader(vec3 vertex_input,
 #ifdef POINT_SIZE_USED
 	float point_size = 1.0;
 #endif
+#ifdef CLIP_DISTANCE_USED
+	// Where the vertex stands against a clip of the shader's own: the
+	// rasterizer cuts each triangle where this crosses nought, as it does
+	// at the near plane, so what lies past it is never shaded and nothing
+	// is discarded (which costs a tiling GPU its early depth rejection).
+	float clip_distance = 1.0;
+#endif
 
 	{
 #CODE : VERTEX
 	}
+#ifdef CLIP_DISTANCE_USED
+	gl_ClipDistance[0] = clip_distance;
+#endif
 
 	float roughness = roughness_highp;
 #ifdef NORMAL_USED

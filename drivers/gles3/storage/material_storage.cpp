@@ -1276,6 +1276,7 @@ MaterialStorage::MaterialStorage() {
 		actions.renames["UV2"] = "uv2_interp";
 		actions.renames["COLOR"] = "color_interp";
 		actions.renames["POINT_SIZE"] = "point_size";
+		actions.renames["CLIP_DISTANCE"] = "clip_distance";
 		actions.renames["INSTANCE_ID"] = "gl_InstanceID";
 		actions.renames["VERTEX_ID"] = "gl_VertexID";
 		actions.renames["Z_CLIP_SCALE"] = "z_clip_scale";

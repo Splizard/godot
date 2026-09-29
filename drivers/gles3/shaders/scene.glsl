@@ -719,6 +719,9 @@ void vertex_shader(vec4 vertex_angle_attrib_input,
 	highp mat3 modelview_normal = mat3(scene_data_input.view_matrix) * model_normal_matrix;
 
 	float point_size = 1.0;
+	// CLIP_DISTANCE is written and unused: GLES has no clip distance
+	// without an extension, so a shader that must be cut keeps its discard.
+	float clip_distance = 1.0;
 
 	{
 #CODE : VERTEX
