@@ -1134,7 +1134,16 @@ void RenderForwardMobile::_render_scene(RenderDataRD *p_render_data, const Color
 
 			RID sky_rid = environment_get_sky(p_render_data->environment);
 			if (sky_rid.is_valid()) {
-				sky.update_radiance_buffers(rb, p_render_data->environment, p_render_data->scene_data->cam_transform.origin, time, sky_luminance_multiplier, sky_brightness_multiplier);
+				// The radiance cubemap lights the ambient and the reflections
+				// and gives the fog the sky's colour. A sky drawn behind the
+				// scene and nothing else needs none of it, and one whose
+				// shader moves with TIME had it drawn and filtered again every
+				// frame for nothing.
+				bool radiance_used = use_ambient_cubemap || use_reflection_cubemap ||
+						(environment_get_fog_enabled(p_render_data->environment) && environment_get_fog_aerial_perspective(p_render_data->environment) > 0.0);
+				if (radiance_used) {
+					sky.update_radiance_buffers(rb, p_render_data->environment, p_render_data->scene_data->cam_transform.origin, time, sky_luminance_multiplier, sky_brightness_multiplier);
+				}
 				radiance_texture = sky.sky_get_radiance_texture_rd(sky_rid);
 			} else {
 				// do not try to draw sky if invalid
