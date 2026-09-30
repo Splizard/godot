@@ -51,12 +51,16 @@ void Dependency::deleted_notify(const RID &p_rid) {
 }
 
 Dependency::~Dependency() {
-#ifdef DEBUG_ENABLED
 	if (instances.size()) {
+#ifdef DEBUG_ENABLED
 		WARN_PRINT("Leaked instance dependency: Bug - did not call instance_notify_deleted when freeing.");
+#endif
+		// Always, not only in a debug build: a tracker left holding this
+		// dependency reads it after it is gone once its instance is freed,
+		// which at exit, where every instance still standing is freed after
+		// the storage it depends on, crashed every release build that left one.
 		for (const KeyValue<DependencyTracker *, uint32_t> &E : instances) {
 			E.key->dependencies.erase(this);
 		}
 	}
-#endif
 }
