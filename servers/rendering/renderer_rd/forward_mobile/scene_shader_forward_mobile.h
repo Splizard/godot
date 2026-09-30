@@ -131,7 +131,10 @@ public:
 				uint32_t directional_lights : 2;
 				uint32_t decals : 1;
 				uint32_t directional_light_blend_splits : 8;
-				uint32_t padding_1 : 1;
+				// An alpha_to_coverage_opaque material's prepass cut hard by
+				// its alpha instead, and its colour pass with no coverage
+				// (GODOT_A2C_HARD_PREPASS, render_forward_mobile.cpp).
+				uint32_t hard_prepass : 1;
 			};
 		};
 

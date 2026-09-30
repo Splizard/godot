@@ -2482,6 +2482,10 @@ void RenderForwardMobile::_render_list_template(RenderingDevice::DrawListID p_dr
 
 		SceneShaderForwardMobile::ShaderSpecialization pipeline_specialization = p_params->base_specialization;
 		pipeline_specialization.depth_prepass = p_params->depth_prepass;
+		// GODOT_A2C_HARD_PREPASS=1: alpha_to_coverage_opaque cut hard by
+		// its alpha, to cost what the coverage keeps the GPU from culling.
+		static const bool hard_prepass = OS::get_singleton()->get_environment("GODOT_A2C_HARD_PREPASS") == "1";
+		pipeline_specialization.hard_prepass = hard_prepass && p_params->pass_mode == PASS_MODE_COLOR && surf->shader && surf->shader->uses_opaque_alpha_to_coverage();
 		pipeline_specialization.multimesh = bool(inst->flags_cache & INSTANCE_DATA_FLAG_MULTIMESH);
 		pipeline_specialization.multimesh_format_2d = bool(inst->flags_cache & INSTANCE_DATA_FLAG_MULTIMESH_FORMAT_2D);
 		pipeline_specialization.multimesh_has_color = bool(inst->flags_cache & INSTANCE_DATA_FLAG_MULTIMESH_HAS_COLOR);

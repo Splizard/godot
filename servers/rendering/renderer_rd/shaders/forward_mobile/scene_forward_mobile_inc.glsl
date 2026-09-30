@@ -125,6 +125,10 @@ bool sc_depth_prepass() {
 	return ((sc_packed_0() >> 19) & 1U) != 0;
 }
 
+bool sc_hard_prepass() {
+	return ((sc_packed_1() >> 31) & 1U) != 0;
+}
+
 bool sc_multimesh() {
 	return ((sc_packed_0() >> 12) & 1U) != 0;
 }

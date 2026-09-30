@@ -446,13 +446,16 @@ void SceneShaderForwardMobile::ShaderData::_create_pipeline(PipelineKey p_pipeli
 				// colour; the colour pass then shades only the samples whose
 				// depth it laid, and writes none, so a leaf hidden behind
 				// another is never lit (render_forward_mobile's opaque pass).
-				multisample_state.enable_alpha_to_coverage = true;
+				// Cut hard (hard_prepass): no coverage in either pass, the
+				// prepass discarding by alpha and the colour pass filling
+				// every sample whose depth it laid.
+				multisample_state.enable_alpha_to_coverage = !p_pipeline_key.shader_specialization.hard_prepass;
 				if (p_pipeline_key.shader_specialization.depth_prepass) {
 					for (RD::PipelineColorBlendState::Attachment &attachment : blend_state.attachments) {
 						attachment.write_r = attachment.write_g = attachment.write_b = attachment.write_a = false;
 					}
 				} else {
-					multisample_state.enable_alpha_to_one = true;
+					multisample_state.enable_alpha_to_one = !p_pipeline_key.shader_specialization.hard_prepass;
 					if (depth_stencil_state.enable_depth_test) {
 						depth_stencil_state.depth_compare_operator = RD::COMPARE_OP_EQUAL;
 						depth_stencil_state.enable_depth_write = false;

@@ -1412,6 +1412,12 @@ void main() {
 	// colour pass then draws only where it is equal, so each sample of a
 	// crown is shaded once, however many leaves lie behind it.
 	if (sc_depth_prepass()) {
+		// Cut hard at the edge instead: a fragment that may still change
+		// its coverage keeps a tiling GPU from rejecting what is hidden
+		// before it runs; one that is kept or thrown away whole may not.
+		if (sc_hard_prepass() && alpha < half(0.5)) {
+			discard;
+		}
 		frag_color = vec4(0.0, 0.0, 0.0, float(alpha));
 		return;
 	}
