@@ -394,7 +394,20 @@ void register_core_extensions() {
 
 	// Hardcoded for now.
 	GDExtension::initialize_gdextensions();
-	gdextension_manager->load_extensions();
+#ifdef LIBGODOT_ENABLED
+	// A program that embeds the engine with an extension of its own linked in
+	// can name the .gdextension file of that extension, so that the extension
+	// is registered under that path (see GodotInstance::initialize) instead of
+	// being loaded a second time from the file's libraries. The project's
+	// extensions are then loaded after it.
+	String host_extension = OS::get_singleton()->get_environment("LIBGODOT_MAIN_EXTENSION");
+	if (!host_extension.is_empty()) {
+		// It is for this process, not the ones it starts.
+		OS::get_singleton()->unset_environment("LIBGODOT_MAIN_EXTENSION");
+		gdextension_manager->set_host_extension_path(host_extension);
+	} else
+#endif
+		gdextension_manager->load_extensions();
 	gdextension_manager->initialize_extensions(GDExtension::INITIALIZATION_LEVEL_CORE);
 	_is_core_extensions_registered = true;
 

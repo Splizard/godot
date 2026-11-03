@@ -41,6 +41,7 @@ class GDExtensionManager : public Object {
 	int32_t level = -1;
 	HashMap<String, Ref<GDExtension>> gdextension_map;
 	HashMap<String, String> gdextension_class_icon_paths;
+	String host_extension_path; // see register_core_extensions.
 
 	bool startup_callback_called = false;
 	bool shutdown_callback_called = false;
@@ -91,6 +92,8 @@ public:
 	static GDExtensionManager *get_singleton();
 
 	void load_extensions();
+	void set_host_extension_path(const String &p_path) { host_extension_path = p_path; }
+	String get_host_extension_path() const { return host_extension_path; }
 	void reload_extensions();
 	bool ensure_extensions_loaded(const HashSet<String> &p_extensions);
 

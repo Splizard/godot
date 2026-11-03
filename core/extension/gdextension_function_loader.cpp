@@ -33,7 +33,9 @@
 #include "core/extension/gdextension.h"
 
 Error GDExtensionFunctionLoader::open_library(const String &p_path) {
-	ERR_FAIL_COND_V_MSG(!p_path.begins_with("libgodot://"), ERR_FILE_NOT_FOUND, "Function based GDExtensions should have a path starting with libgodot://");
+	// The .gdextension path of an extension linked into the program that embeds
+	// the engine (see GodotInstance::initialize).
+	ERR_FAIL_COND_V_MSG(!p_path.begins_with("libgodot://") && !p_path.ends_with(".gdextension"), ERR_FILE_NOT_FOUND, "Function based GDExtensions should have a path starting with libgodot://, or the path of a .gdextension file.");
 	ERR_FAIL_COND_V_MSG(!initialization_function, ERR_DOES_NOT_EXIST, "Initialization function is required for function based GDExtensions.");
 
 	library_path = p_path;

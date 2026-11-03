@@ -57,7 +57,14 @@ bool GodotInstance::initialize(GDExtensionInitializationFunction p_init_func) {
 	print_verbose("Godot Instance initialization");
 	GDExtensionManager *gdextension_manager = GDExtensionManager::get_singleton();
 	GDExtensionConstPtr<const GDExtensionInitializationFunction> ptr((const GDExtensionInitializationFunction *)&p_init_func);
-	GDExtensionManager::LoadStatus status = gdextension_manager->load_extension_from_function("libgodot://main", ptr);
+	// see register_core_extensions.
+	String path = gdextension_manager->get_host_extension_path();
+	if (path.is_empty()) {
+		GDExtensionManager::LoadStatus status = gdextension_manager->load_extension_from_function("libgodot://main", ptr);
+		return status == GDExtensionManager::LoadStatus::LOAD_STATUS_OK;
+	}
+	GDExtensionManager::LoadStatus status = gdextension_manager->load_extension_from_function(path, ptr);
+	gdextension_manager->load_extensions(); // skips the path, it is loaded.
 	return status == GDExtensionManager::LoadStatus::LOAD_STATUS_OK;
 }
 
