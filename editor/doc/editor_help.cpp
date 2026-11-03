@@ -3041,7 +3041,7 @@ void EditorHelp::_load_doc_thread(void *p_udata) {
 		callable_mp_static(&EditorHelp::_gen_extensions_docs).call_deferred();
 	} else {
 		// We have to go back to the main thread to start from scratch, bypassing any possibly existing cache.
-		callable_mp_static(&EditorHelp::generate_doc).call_deferred(false, use_script_cache);
+		callable_mp_static(&EditorHelp::_regenerate_doc).call_deferred(use_script_cache);
 	}
 
 	OS::get_singleton()->benchmark_end_measure("EditorHelp", vformat("Generate Documentation (Run %d)", doc_generation_count));
@@ -3080,7 +3080,21 @@ void EditorHelp::_gen_doc_thread(void *p_udata) {
 	OS::get_singleton()->benchmark_end_measure("EditorHelp", vformat("Generate Documentation (Run %d)", doc_generation_count));
 }
 
+// Deferred by _load_doc_thread(), see _gen_extensions_docs().
+void EditorHelp::_regenerate_doc(bool p_use_script_cache) {
+	if (!doc) {
+		return;
+	}
+	generate_doc(false, p_use_script_cache);
+}
+
 void EditorHelp::_gen_extensions_docs() {
+	// Deferred by _load_doc_thread(), which can finish after the editor is gone
+	// and cleanup_doc() has deleted the docs (see load_script_doc_cache()).
+	if (!doc) {
+		return;
+	}
+
 	doc->generate((DocTools::GENERATE_FLAG_SKIP_BASIC_TYPES | DocTools::GENERATE_FLAG_EXTENSION_CLASSES_ONLY));
 
 	// Append extra doc data, as it gets overridden by the generation step.
@@ -3093,6 +3107,13 @@ static void _load_script_doc_cache(bool p_changes) {
 }
 
 void EditorHelp::load_script_doc_cache() {
+	// Deferred by the doc threads, which can finish after the editor is gone:
+	// Main::cleanup flushes the message queue once more after EditorNode is
+	// deleted (a headless --import that outruns regenerating the doc cache).
+	if (!EditorNode::get_singleton()) {
+		return;
+	}
+
 	if (!ProjectSettings::get_singleton()->is_project_loaded()) {
 		print_verbose("Skipping loading script doc cache since no project is open.");
 		return;
@@ -3167,6 +3188,12 @@ static void _regenerate_script_doc_cache(bool p_changes) {
 }
 
 void EditorHelp::regenerate_script_doc_cache() {
+	// See load_script_doc_cache(): with the editor gone there is no filesystem to walk
+	// (EditorFileSystem's singleton is left dangling, so it cannot be checked itself).
+	if (!EditorNode::get_singleton()) {
+		return;
+	}
+
 	if (EditorFileSystem::get_singleton()->is_scanning()) {
 		// Wait until EditorFileSystem scanning is complete to use updated filesystem structure.
 		EditorFileSystem::get_singleton()->connect(SNAME("sources_changed"), callable_mp_static(_regenerate_script_doc_cache), CONNECT_ONE_SHOT);
